@@ -10,6 +10,7 @@ import dbus
 import stat
 import shutil
 import random
+import hashlib
 import logging
 import subprocess
 from gi.repository import GLib
@@ -18,6 +19,14 @@ from dbus.mainloop.glib import DBusGMainLoop
 
 
 class PsUtil:
+
+    @staticmethod
+    def generateApacheHtdigestFile(filename, userInfoList):
+        # userInfoList: [(username, realm, password), ...]
+        with open(filename, "w") as f:
+            for ui in userInfoList:
+                f.write(ui[0] + ':' + ui[1] + ':' + hashlib.md5(':'.join(ui)).hexdigest())
+                f.write('\n')
 
     @staticmethod
     def readFile(filename):

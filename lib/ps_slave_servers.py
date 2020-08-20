@@ -2,8 +2,6 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
-import json
-import signal
 import logging
 import subprocess
 from ps_util import PsUtil
@@ -59,8 +57,12 @@ class _HttpServer:
         self._errorLogFile = os.path.join(PsConst.logDir, "httpd-error.log")
         self._accessLogFile = os.path.join(PsConst.logDir, "httpd-access.log")
 
-        self._dirDict = dict()          # files
-        self._gitDirDict = dict()       # git repositories
+        # file
+        self._dirDict = dict()          # <domain-name,file-directory>
+
+        # git
+        self._gitDirDict = dict()       # <domain-name,git-repositories-directory>
+        self._gitFilesDict = dict()     # <domain-name,(wsgi-script-filename,htdigest-filename)
 
         self._proc = None
 
@@ -73,9 +75,11 @@ class _HttpServer:
         assert self._proc is not None
         assert _checkNameAndRealPath(self._gitDirDict, name, realPath)
         self._gitDirDict[name] = realPath
+        self._gitFilesDict[name] = None
 
     def start(self):
         assert self._proc is None
+        self._generateKlausFiles()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitTcpServiceForProc(self.param.listenIp, self.param.httpPort, self._proc)
@@ -87,11 +91,31 @@ class _HttpServer:
             self._proc.wait()
             self._proc = None
 
+    def _generateKlausFiles(self):
+        userInfo = ("write", "klaus", "write")      # (username, scope, password)
+        for name, realPath in self._gitDirDict.items():
+            # htdigest file
+            htdigestFn = os.path.join(PsConst.tmpDir, "auth-%s.htdigest")
+            PsUtil.generateApacheHtdigestFile(htdigestFn, [userInfo])
+
+            # wsgi script
+            wsgiFn = os.path.join(PsConst.tmpDir, "wsgi-%s.py" % (name))
+            with open(wsgiFn, "w") as f:
+                buf = ''
+                buf += 'from klaus.contrib.wsgi_autoreloading import make_autoreloading_app\n'
+                buf += '\n'
+                buf += 'app = make_autoreloading_app("%s", "%s",\n' % (realPath, name)
+                buf += '                             use_smarthttp=True,\n'
+                buf += '                             unauthenticated_push=True,\n'
+                buf += '                             htdigest_file=open("%s"))\n' % (htdigestFn)
+                f.write(buf)
+
+            self._gitFilesDict[name] = (htdigestFn, wsgiFn)
+
     def _generateCfgFn(self):
         modulesDir = "/usr/lib64/apache2/modules"
         buf = ""
 
-        # modules
         buf += "LoadModule log_config_module      %s/mod_log_config.so\n" % (modulesDir)
         buf += "LoadModule unixd_module           %s/mod_unixd.so\n" % (modulesDir)
         buf += "LoadModule alias_module           %s/mod_alias.so\n" % (modulesDir)
@@ -100,49 +124,32 @@ class _HttpServer:
         # buf += "LoadModule env_module             %s/mod_env.so\n" % (modulesDir)
         # buf += "LoadModule cgi_module             %s/mod_cgi.so\n" % (modulesDir)
         buf += "\n"
-
-        # global settings
         buf += 'PidFile "%s"\n' % (self._pidFile)
         buf += 'ErrorLog "%s"\n' % (self._errorLogFile)
         buf += r'LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" common' + "\n"
         buf += 'CustomLog "%s" common\n' % (self._accessLogFile)
         buf += "\n"
+        buf += "ServerName none\n"                              # dummy value
         buf += "Listen %d http\n" % (self.param.httpPort)
+        buf += "\n"
 
         for name, realPath in self._dirDict.items():
-            pass
+            buf += '<VirtualHost %s:%d>\n' % (name, self.param.httpPort)
+            buf += '    DocumentRoot "%s"\n' % (realPath)
+            buf += '    <Directory "%s">\n' % (realPath)
+            buf += '        Options Indexes\n'
+            buf += '        Require all granted\n'
+            buf += '    </Directory>\n'
+            buf += '</VirtualHost>\n'
+            buf += '\n'
 
         for name, realPath in self._gitDirDict.items():
-            pass
-
-
-        buf += "ServerName none\n"                              # dummy value
-        buf += "\n"
-        buf += 'DocumentRoot "%s"\n' % (self._virtRootDir)
-        buf += '<Directory "%s">\n' % (self._virtRootDir)
-        buf += '  Options Indexes FollowSymLinks\n'
-        buf += '  Require all denied\n'
-        buf += '</Directory>\n'
-        if len(self._dirDict) > 0:
-            buf += '<Directory "%s">\n' % (os.path.join(self._virtRootDir, "file"))
-            buf += '  Require all granted\n'
-            buf += '</Directory>\n'
-        buf += "\n"
-
-        # git settings
-        if len(self._gitDirDict) > 0:
-            # buf += "SetEnv GIT_PROJECT_ROOT \"${REPO_ROOT_DIR}\""
-            # buf += "SetEnv GIT_HTTP_EXPORT_ALL"
-            # buf += ""
-            # buf += "  AliasMatch ^/(.*/objects/[0-9a-f]{2}/[0-9a-f]{38})$          \"${REPO_ROOT_DIR}/\$1\""
-            # buf += "  AliasMatch ^/(.*/objects/pack/pack-[0-9a-f]{40}.(pack|idx))$ \"${REPO_ROOT_DIR}/\$1\""
-            # buf += ""
-            # buf += "  ScriptAlias / /usr/libexec/git-core/git-http-backend/"
-            # buf += ""
-            # buf += "  <Directory \"${REPO_ROOT_DIR}\">"
-            # buf += "    AllowOverride None"
-            # buf += "  </Directory>"
-            buf += "\n"
+            buf += '<VirtualHost %s:%d>\n' % (name, self.param.httpPort)
+            buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
+            buf += '    WSGIDaemonProcess\n'
+            buf += '    WSGIProcessGroup \n'
+            buf += '</VirtualHost>\n'
+            buf += '\n'
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
@@ -190,7 +197,7 @@ class _FtpServer:
         buf += 'Umask 022\n'
 
         for name, realPath in self._dirDict.items():
-            buf += 'DefaultRoot %s\n' % (self.)
+            buf += 'DefaultRoot %s\n' % (realPath)
 
             # # Generally files are overwritable.
             # AllowOverwrite on
