@@ -21,22 +21,26 @@ class PsSlaveServers:
         for serverObj in self.param.serverDict.values():
             for advertiseType in serverObj.advertiseTypeList:
                 if serverObj.serverType == "file" and advertiseType == "http":
-                    self.httpServer = True
+                    if self.httpServer is None:
+                        self.httpServer = _HttpServer(self.param)
+                    self.httpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
                     continue
                 if serverObj.serverType == "file" and advertiseType == "ftp":
-                    self.ftpServer = True
+                    if self.ftpServer is None:
+                        self.ftpServer = _FtpServer(self.param)
+                    self.ftpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
                     continue
                 if serverObj.serverType == "git" and advertiseType == "klaus":
-                    self.httpServer = True
+                    if self.httpServer is None:
+                        self.httpServer = _HttpServer(self.param)
+                    self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)
                     continue
                 assert False
 
-        # create servers
+        # start servers
         if self.httpServer is not None:
-            self.httpServer = _HttpServer(self.param)
             self.httpServer.start()
         if self.ftpServer is not None:
-            self.ftpServer = _FtpServer(self.param)
             self.ftpServer.start()
 
     def dispose(self):
@@ -50,7 +54,6 @@ class _HttpServer:
 
     def __init__(self, param):
         self.param = param
-        self._virtRootDir = os.path.join(PsConst.tmpDir, "vroot-httpd")
         self._cfgFn = os.path.join(PsConst.tmpDir, "httpd.conf")
         self._pidFile = os.path.join(PsConst.tmpDir, "httpd.pid")
         self._errorLogFile = os.path.join(PsConst.logDir, "httpd-error.log")
@@ -61,11 +64,18 @@ class _HttpServer:
 
         self._proc = None
 
+    def addFileDir(self, name, realPath):
+        assert self._proc is not None
+        assert _checkNameAndRealPath(self._dirDict, name, realPath)
+        self._dirDict[name] = realPath
+
+    def addGitDir(self, name, realPath):
+        assert self._proc is not None
+        assert _checkNameAndRealPath(self._gitDirDict, name, realPath)
+        self._gitDirDict[name] = realPath
+
     def start(self):
         assert self._proc is None
-        self._generateVirtualRootDir()
-        self._generateVirtualRootDirFile()
-        self._generateVirtualRootDirGit()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitTcpServiceForProc(self.param.listenIp, self.param.httpPort, self._proc)
@@ -76,62 +86,6 @@ class _HttpServer:
             self._proc.terminate()
             self._proc.wait()
             self._proc = None
-
-    def addFileDir(self, name, realPath):
-        assert self._proc is not None
-        assert _checkNameAndRealPath(self._dirDict, name, realPath)
-        self._dirDict[name] = realPath
-        self._generateVirtualRootDirFile()
-        self._generateCfgFn()
-        os.kill(self._proc.pid, signal.SIGUSR1)
-
-    def addGitDir(self, name, realPath):
-        assert self._proc is not None
-        assert _checkNameAndRealPath(self._gitDirDict, name, realPath)
-        self._gitDirDict[name] = realPath
-        self._generateVirtualRootDirGit()
-        self._generateCfgFn()
-        os.kill(self._proc.pid, signal.SIGUSR1)
-
-    def _generateVirtualRootDir(self):
-        PsUtil.ensureDir(self._virtRootDir)
-
-    def _generateVirtualRootDirFile(self):
-        if len(self._dirDict) == 0:
-            return
-
-        virtRootDirFile = os.path.join(self._virtRootDir, "file")
-
-        PsUtil.ensureDir(virtRootDirFile)
-
-        # create new directories
-        for name, realPath in self._dirDict.items():
-            dn = os.path.join(virtRootDirFile, name)
-            if not os.path.exists(dn):
-                os.symlink(realPath, dn)
-
-        # remove old directories
-        for dn in os.listdir(virtRootDirFile):
-            if dn not in self._dirDict:
-                os.unlink(dn)
-
-    def _generateVirtualRootDirGit(self):
-        if len(self._gitDirDict) == 0:
-            return
-
-        virtRootDirGit = os.path.join(self._virtRootDir, "git")
-        PsUtil.ensureDir(virtRootDirGit)
-
-        # create new directories
-        for name, realPath in self._gitDirDict.items():
-            dn = os.path.join(virtRootDirGit, name)
-            if not os.path.exists(dn):
-                os.symlink(realPath, dn)
-
-        # remove old directories
-        for dn in os.listdir(virtRootDirGit):
-            if dn not in self._gitDirDict:
-                os.unlink(dn)
 
     def _generateCfgFn(self):
         modulesDir = "/usr/lib64/apache2/modules"
@@ -154,6 +108,14 @@ class _HttpServer:
         buf += 'CustomLog "%s" common\n' % (self._accessLogFile)
         buf += "\n"
         buf += "Listen %d http\n" % (self.param.httpPort)
+
+        for name, realPath in self._dirDict.items():
+            pass
+
+        for name, realPath in self._gitDirDict.items():
+            pass
+
+
         buf += "ServerName none\n"                              # dummy value
         buf += "\n"
         buf += 'DocumentRoot "%s"\n' % (self._virtRootDir)
@@ -182,28 +144,32 @@ class _HttpServer:
             # buf += "  </Directory>"
             buf += "\n"
 
-        # write file atomically
-        with open(self._cfgFn + ".tmp", "w") as f:
+        with open(self._cfgFn, "w") as f:
             f.write(buf)
-        os.rename(self._cfgFn + ".tmp", self._cfgFn)
 
 
 class _FtpServer:
 
     def __init__(self, param):
         self.param = param
-        self._execFile = os.path.join(PsConst.libexecDir, "ftpd.py")
-        self._cfgFile = os.path.join(PsConst.tmpDir, "ftpd.cfg")
-        self._logFile = os.path.join(PsConst.logDir, "ftpd.log")
+        self._cfgFn = os.path.join(PsConst.tmpDir, "ftpd.conf")
+        self._pidFile = os.path.join(PsConst.tmpDir, "ftpd.pid")
+        self._errorLogFile = os.path.join(PsConst.logDir, "ftpd-error.log")
+        self._accessLogFile = os.path.join(PsConst.logDir, "ftpd-access.log")
 
         self._dirDict = dict()
 
         self._proc = None
 
+    def addFileDir(self, name, realPath):
+        assert self._proc is not None
+        assert _checkNameAndRealPath(self._dirDict, name, realPath)
+        self._dirDict[name] = realPath
+
     def start(self):
         assert self._proc is None
-        self._generateCfgFile()
-        self._proc = subprocess.Popen([self._execFile, self._cfgFile], cwd=PsConst.cacheDir)
+        self._generateCfgFn()
+        self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-f", self._cfgFn, "-n"])
         PsUtil.waitTcpServiceForProc(self.param.listenIp, self.param.ftpPort, self._proc)
         logging.info("Slave server (ftp) started, listening on port %d." % (self.param.ftpPort))
 
@@ -213,27 +179,46 @@ class _FtpServer:
             self._proc.wait()
             self._proc = None
 
-    def addFileDir(self, name, realPath):
-        assert self._proc is not None
-        assert _checkNameAndRealPath(self._dirDict, name, realPath)
-        self._dirDict[name] = realPath
-        self._generateCfgFile()
-        os.kill(self._proc.pid, signal.SIGUSR1)
+    def _generateCfgFn(self):
+        buf = ""
+        buf += 'ServerName "ProFTPD Default Server"\n'
+        buf += 'ServerType standalone\n'
+        buf += 'DefaultServer on\n'
+        buf += 'RequireValidShell off\n'
+        buf += 'AuthPAM off\n'
+        buf += 'Port %d\n' % (self.param.ftpPort)
+        buf += 'Umask 022\n'
 
-    def _generateCfgFile(self):
-        # generate file content
-        dataObj = dict()
-        dataObj["logFile"] = self._logFile
-        dataObj["logMaxBytes"] = PsConst.updaterLogFileSize
-        dataObj["logBackupCount"] = PsConst.updaterLogFileCount
-        dataObj["ip"] = self.param.listenIp
-        dataObj["port"] = self.param.ftpPort
-        dataObj["dirmap"] = self._dirDict
+        for name, realPath in self._dirDict.items():
+            buf += 'DefaultRoot %s\n' % (self.)
 
-        # write file atomically
-        with open(self._cfgFile + ".tmp", "w") as f:
-            json.dump(dataObj, f)
-        os.rename(self._cfgFile + ".tmp", self._cfgFile)
+            # # Generally files are overwritable.
+            # AllowOverwrite on
+
+            # # Disallow the use of the SITE CHMOD command.
+            # <Limit SITE_CHMOD>
+            # DenyAll
+            # </Limit>
+
+            # # A basic anonymous FTP account without an upload directory.
+            # <Anonymous ~ftp>
+            # User ftp
+            # Group ftp
+
+            # # Clients can login with the username "anonymous" and "ftp".
+            # UserAlias anonymous ftp
+
+            # # Limit the maximum number of parallel anonymous logins to 10.
+            # MaxClients 10
+
+            # # Prohibit the WRITE command for the anonymous users.
+            # <Limit WRITE>
+            #     DenyAll
+            # </Limit>
+            # </Anonymous>
+
+        with open(self._cfgFn, "w") as f:
+            f.write(buf)
 
 
 def _checkNameAndRealPath(dictObj, name, realPath):

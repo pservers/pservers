@@ -66,6 +66,10 @@ class PsServer:
         self.id = rootElem.prop("id")
         self.cfgDict = cfgDict
 
+        # data directory
+        self.dataDir = os.path.join(PsConst.varDir, self.id)
+        PsUtil.ensureDir(self.dataDir)
+
         # domain name
         self.domainName = rootElem.xpathEval(".//domain-name")[0].getContent()
         if not self.domainName.endswith(".private"):
