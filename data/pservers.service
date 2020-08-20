@@ -1,0 +1,10 @@
+[Unit]
+Description=pservers daemon service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/pservers
+
+[Install]
+WantedBy=multi-user.target
