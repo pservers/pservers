@@ -10,7 +10,7 @@ from ps_util import PsUtil
 from ps_param import PsConst
 
 
-class McSlaveServers:
+class PsSlaveServers:
 
     def __init__(self, param):
         self.param = param

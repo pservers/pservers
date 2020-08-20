@@ -52,6 +52,8 @@ class PsDaemon:
                     # load plugins
                     self.pluginManager = PsPluginManager(self.param)
                     self.pluginManager.loadPlugins()
+                    if len(self.param.serverDict) == 0:
+                        raise Exception("no plugin loaded")
                     logging.info("Plugins loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
 
                     # slave servers
@@ -60,7 +62,7 @@ class PsDaemon:
 
                     # register domain names
                     self.param.avahiObj = AvahiDomainNameRegister()
-                    for serverObj in self.param.serverDict().values():
+                    for serverObj in self.param.serverDict.values():
                         self.param.avahiObj.add_domain_name(serverObj.domainName, self.param.listenIp)
                     self.param.avahiObj.start()
 

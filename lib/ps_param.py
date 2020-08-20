@@ -43,3 +43,4 @@ class PsParam:
         self.mainloop = None
         self.pluginManager = None
         self.slaveServers = None
+        self.avahiObj = None

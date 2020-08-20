@@ -321,19 +321,18 @@ class AvahiDomainNameRegister:
 
     def __init__(self):
         self.retryInterval = 30
-        self.serviceList = []
+        self.domainList = []
 
         self._server = None
         self._retryCreateServerTimer = None
         self._entryGroup = None
-        self._retryRegisterServiceTimer = None
+        self._retryRegisterTimer = None
         self._ownerChangeHandler = None
 
-    def add_service(self, service_name, service_type, port):
-        assert isinstance(service_name, str)
-        assert service_type.endswith("._tcp") or service_type.endswith("._udp")
-        assert isinstance(port, int)
-        self.serviceList.append((service_name, service_type, port))
+    def add_domain_name(self, domain_name, ip_address):
+        assert isinstance(domain_name, str)
+        assert isinstance(ip_address, str)
+        self.domainList.append((domain_name, ip_address))
 
     def start(self):
         DBusGMainLoop(set_as_default=True)
@@ -391,31 +390,29 @@ class AvahiDomainNameRegister:
             self._unregisterService()
 
     def _registerService(self):
-        assert self._entryGroup is None and self._retryRegisterServiceTimer is None
+        assert self._entryGroup is None and self._retryRegisterTimer is None
         try:
             self._entryGroup = dbus.Interface(dbus.SystemBus().get_object("org.freedesktop.Avahi", self._server.EntryGroupNew()),
                                               "org.freedesktop.Avahi.EntryGroup")
-            for serviceName, serviceType, port in self.serviceList:
-                self._entryGroup.AddService(-1,                 # interface = avahi.IF_UNSPEC
+            for domainName, ipAddress in self.domainList:
+                print(domainName)
+                print(ipAddress)
+                self._entryGroup.AddAddress(-1,                 # interface = avahi.IF_UNSPEC
                                             0,                  # protocol = avahi.PROTO_UNSPEC
                                             dbus.UInt32(0),     # flags
-                                            serviceName,        # name
-                                            serviceType,        # type
-                                            "",                 # domain
-                                            "",                 # host
-                                            dbus.UInt16(port),  # port
-                                            "")                 # txt
+                                            domainName,         # name
+                                            ipAddress)          # address
             self._entryGroup.Commit()
             self._entryGroup.connect_to_signal("StateChanged", self.onEntryGroupStateChanged)
         except Exception:
-            logging.error("Avahi register service failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
+            logging.error("Avahi register domain name failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
             self._unregisterService()
             self._retryRegisterService()
 
     def _unregisterService(self):
-        if self._retryRegisterServiceTimer is not None:
-            GLib.source_remove(self._retryRegisterServiceTimer)
-            self._retryRegisterServiceTimer = None
+        if self._retryRegisterTimer is not None:
+            GLib.source_remove(self._retryRegisterTimer)
+            self._retryRegisterTimer = None
         if self._entryGroup is not None:
             try:
                 if self._entryGroup.GetState() != 4:        # avahi.ENTRY_GROUP_FAILURE
@@ -450,10 +447,10 @@ class AvahiDomainNameRegister:
         return False
 
     def _retryRegisterService(self):
-        assert self._retryRegisterServiceTimer is None
-        self._retryRegisterServiceTimer = GLib.timeout_add_seconds(self.retryInterval, self.__timeoutRegisterService)
+        assert self._retryRegisterTimer is None
+        self._retryRegisterTimer = GLib.timeout_add_seconds(self.retryInterval, self.__timeoutRegisterService)
 
     def __timeoutRegisterService(self):
-        self._retryRegisterServiceTimer = None
+        self._retryRegisterTimer = None
         self._registerService()                 # no exception in self._registerService()
         return False

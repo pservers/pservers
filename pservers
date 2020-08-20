@@ -4,9 +4,9 @@
 import sys
 sys.path.append('/usr/lib64/pservers')
 from ps_param import PsParam
-from ps_daemon import McDaemon
+from ps_daemon import PsDaemon
 
 param = PsParam()
-obj = McDaemon(param)
+obj = PsDaemon(param)
 obj.run()
 sys.exit(0)
