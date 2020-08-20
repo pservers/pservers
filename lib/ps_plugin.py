@@ -78,14 +78,14 @@ class PsServer:
         self.domainName = self.domainName.replace(".private", ".local")
 
         # server type
-        self.serverType = rootElem.xpathEval(".//type")[0].getContent()
+        self.serverType = rootElem.xpathEval(".//server-type")[0].getContent()
         if self.serverType not in ["file", "git"]:
             raise Exception("server %s: invalid server type %s" % (self.id, self.serverType))
 
         # advertise type
         self.advertiseTypeList = []
         for child in rootElem.xpathEval(".//advertise-type"):
-            value = child.getConent()
+            value = child.getContent()
             if self.serverType == "file":
                 if value not in ["http", "ftp"]:
                     raise Exception("server %s: invalid advertise mode %s" % (self.id, value))

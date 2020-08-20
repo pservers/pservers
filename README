@@ -1,4 +1,2 @@
-1. active-active
-2. request own ip address
-3. domain-name -> multiple ip
-
+1. request dedicated ip address
+2. active-active

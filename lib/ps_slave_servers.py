@@ -67,12 +67,12 @@ class _HttpServer:
         self._proc = None
 
     def addFileDir(self, name, realPath):
-        assert self._proc is not None
+        assert self._proc is None
         assert _checkNameAndRealPath(self._dirDict, name, realPath)
         self._dirDict[name] = realPath
 
     def addGitDir(self, name, realPath):
-        assert self._proc is not None
+        assert self._proc is None
         assert _checkNameAndRealPath(self._gitDirDict, name, realPath)
         self._gitDirDict[name] = realPath
         self._gitFilesDict[name] = None
@@ -82,8 +82,8 @@ class _HttpServer:
         self._generateKlausFiles()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
-        PsUtil.waitTcpServiceForProc(self.param.listenIp, self.param.httpPort, self._proc)
-        logging.info("Slave server (http) started, listening on port %d." % (self.param.httpPort))
+        PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.httpPort, self._proc)
+        logging.info("Server (http) started, listening on port %d." % (PsConst.httpPort))
 
     def stop(self):
         if self._proc is not None:
@@ -129,12 +129,13 @@ class _HttpServer:
         buf += r'LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" common' + "\n"
         buf += 'CustomLog "%s" common\n' % (self._accessLogFile)
         buf += "\n"
-        buf += "ServerName none\n"                              # dummy value
-        buf += "Listen %d http\n" % (self.param.httpPort)
+        buf += "ServerName none\n"                          # dummy value
+        buf += "Listen %d http\n" % (PsConst.httpPort)
         buf += "\n"
 
         for name, realPath in self._dirDict.items():
-            buf += '<VirtualHost %s:%d>\n' % (name, self.param.httpPort)
+            buf += '<VirtualHost *>\n'
+            buf += '    ServerName %s\n' % (name)
             buf += '    DocumentRoot "%s"\n' % (realPath)
             buf += '    <Directory "%s">\n' % (realPath)
             buf += '        Options Indexes\n'
@@ -143,13 +144,14 @@ class _HttpServer:
             buf += '</VirtualHost>\n'
             buf += '\n'
 
-        for name, realPath in self._gitDirDict.items():
-            buf += '<VirtualHost %s:%d>\n' % (name, self.param.httpPort)
-            buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
-            buf += '    WSGIDaemonProcess\n'
-            buf += '    WSGIProcessGroup \n'
-            buf += '</VirtualHost>\n'
-            buf += '\n'
+        # for name, realPath in self._gitDirDict.items():
+        #     buf += '<VirtualHost *>\n'
+        #     buf += '    ServerName %s\n' % (name)
+        #     buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
+        #     buf += '    WSGIDaemonProcess\n'
+        #     buf += '    WSGIProcessGroup \n'
+        #     buf += '</VirtualHost>\n'
+        #     buf += '\n'
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
@@ -169,7 +171,7 @@ class _FtpServer:
         self._proc = None
 
     def addFileDir(self, name, realPath):
-        assert self._proc is not None
+        assert self._proc is None
         assert _checkNameAndRealPath(self._dirDict, name, realPath)
         self._dirDict[name] = realPath
 
@@ -177,8 +179,8 @@ class _FtpServer:
         assert self._proc is None
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-f", self._cfgFn, "-n"])
-        PsUtil.waitTcpServiceForProc(self.param.listenIp, self.param.ftpPort, self._proc)
-        logging.info("Slave server (ftp) started, listening on port %d." % (self.param.ftpPort))
+        PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._proc)
+        logging.info("Server (ftp) started, listening on port %d." % (PsConst.ftpPort))
 
     def stop(self):
         if self._proc is not None:
@@ -193,7 +195,7 @@ class _FtpServer:
         buf += 'DefaultServer on\n'
         buf += 'RequireValidShell off\n'
         buf += 'AuthPAM off\n'
-        buf += 'Port %d\n' % (self.param.ftpPort)
+        buf += 'Port %d\n' % (PsConst.ftpPort)
         buf += 'Umask 022\n'
 
         for name, realPath in self._dirDict.items():

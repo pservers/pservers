@@ -25,6 +25,9 @@ class PsConst:
     updaterLogFileSize = 10 * 1024 * 1024
     updaterLogFileCount = 2
 
+    httpPort = 80
+    ftpPort = 21
+
     mainCfgFile = os.path.join(etcDir, "main.conf")
     pluginCfgFileGlobPattern = os.path.join(etcDir, "plugin-*.conf")
     pidFile = os.path.join(runDir, "pservers.pid")
@@ -35,9 +38,8 @@ class PsParam:
     def __init__(self):
         self.serverDict = dict()
 
+        self.ipStrategy = "static"            # dedicate
         self.listenIp = "0.0.0.0"
-        self.httpPort = 80
-        self.ftpPort = 21
 
         # objects
         self.mainloop = None

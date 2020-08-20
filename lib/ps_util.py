@@ -8,6 +8,7 @@ import imp
 import time
 import dbus
 import stat
+import prctl
 import shutil
 import random
 import hashlib
@@ -25,7 +26,7 @@ class PsUtil:
         # userInfoList: [(username, realm, password), ...]
         with open(filename, "w") as f:
             for ui in userInfoList:
-                f.write(ui[0] + ':' + ui[1] + ':' + hashlib.md5(':'.join(ui)).hexdigest())
+                f.write(ui[0] + ':' + ui[1] + ':' + hashlib.md5(':'.join(ui).encode("iso8859-1")).hexdigest())
                 f.write('\n')
 
     @staticmethod
@@ -304,11 +305,24 @@ class DynObject:
 
 class DropPriviledge:
 
-    def __init__(self, uid, gid):
+    def __init__(self, uid, gid, caps=None):
         assert os.getuid() == 0
         assert os.getgid() == 0
+
+        if caps is not None:
+            prctl.securebits.keep_caps = True
+            prctl.securebits.no_setuid_fixup = True
+
         os.setresgid(gid, gid, 0)       # must change gid first
         os.setresuid(uid, uid, 0)
+
+        if caps is not None:
+            prctl.capbset.limit(*caps)
+            try:
+                prctl.cap_permitted.limit(*caps)
+            except PermissionError:
+                pass
+            prctl.cap_effective.limit(*caps)
 
     def __enter__(self):
         return self
@@ -323,13 +337,18 @@ class AvahiDomainNameRegister:
     """
     Exampe:
         obj = AvahiServiceRegister()
-        obj.add_domain_name(domainName, ipAddress)
+        obj.add_domain_name(domainName)
         obj.start()
         obj.stop()
     """
 
-    def __init__(self):
+    def __init__(self, ipStrategy="static", ipAddr="0.0.0.0"):
+        assert ipStrategy == "static" and ipAddr == "0.0.0.0"
+        # assert ipStrategy in ["static", "dedicate"]
+
         self.retryInterval = 30
+        self.ipStrategy = ipStrategy
+        self.ipAddr = ipAddr
         self.domainList = []
 
         self._server = None
@@ -338,10 +357,9 @@ class AvahiDomainNameRegister:
         self._retryRegisterTimer = None
         self._ownerChangeHandler = None
 
-    def add_domain_name(self, domain_name, ip_address):
+    def add_domain_name(self, domain_name):
         assert isinstance(domain_name, str)
-        assert isinstance(ip_address, str)
-        self.domainList.append((domain_name, ip_address))
+        self.domainList.append(domain_name)
 
     def start(self):
         DBusGMainLoop(set_as_default=True)
@@ -354,7 +372,7 @@ class AvahiDomainNameRegister:
         if self._ownerChangeHandler is not None:
             dbus.SystemBus().remove_signal_receiver(self._ownerChangeHandler)
             self._ownerChangeHandler = None
-        self._unregisterService()
+        self._unregister()
         self._releaseServer()
 
     def onNameOwnerChanged(self, name, old, new):
@@ -366,7 +384,7 @@ class AvahiDomainNameRegister:
                     # this may happen on some rare case
                     pass
             elif new == "" and old != "":
-                self._unregisterService()
+                self._unregister()
                 self._releaseServer()
             else:
                 assert False
@@ -377,7 +395,7 @@ class AvahiDomainNameRegister:
         try:
             self._server = dbus.Interface(dbus.SystemBus().get_object("org.freedesktop.Avahi", "/"), "org.freedesktop.Avahi.Server")
             if self._server.GetState() == 2:    # avahi.SERVER_RUNNING
-                self._registerService()
+                self._register()
             self._server.connect_to_signal("StateChanged", self.onSeverStateChanged)
         except Exception:
             logging.error("Avahi create server failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
@@ -393,32 +411,41 @@ class AvahiDomainNameRegister:
 
     def onSeverStateChanged(self, state, error):
         if state == 2:      # avahi.SERVER_RUNNING
-            self._unregisterService()
-            self._registerService()
+            self._unregister()
+            self._register()
         else:
-            self._unregisterService()
+            self._unregister()
 
-    def _registerService(self):
+    def _register(self):
         assert self._entryGroup is None and self._retryRegisterTimer is None
         try:
             self._entryGroup = dbus.Interface(dbus.SystemBus().get_object("org.freedesktop.Avahi", self._server.EntryGroupNew()),
                                               "org.freedesktop.Avahi.EntryGroup")
-            for domainName, ipAddress in self.domainList:
-                print(domainName)
-                print(ipAddress)
-                self._entryGroup.AddAddress(-1,                 # interface = avahi.IF_UNSPEC
-                                            0,                  # protocol = avahi.PROTO_UNSPEC
-                                            dbus.UInt32(0),     # flags
-                                            domainName,         # name
-                                            ipAddress)          # address
+            for domainName in self.domainList:
+                if self.ipAddr != "0.0.0.0":
+                    self._entryGroup.AddAddress(-1,                                  # interface = avahi.IF_UNSPEC
+                                                0,                                   # protocol = avahi.PROTO_UNSPEC
+                                                dbus.UInt32(0),                      # flags
+                                                domainName,                          # name
+                                                self.ipAddr)                         # address
+                else:
+                    hostnameConverted = self.__strToDbusByteArray(self._server.GetHostNameFqdn())
+                    self._entryGroup.AddRecord(-1,                                                         # interface = avahi.IF_UNSPEC
+                                            0           ,                                                  # protocol = avahi.PROTO_UNSPEC
+                                            dbus.UInt32(0),                                                # flags
+                                            domainName,                                                    # name
+                                            0x01,                                                          # CLASS_IN
+                                            0X05,                                                          # TYPE_CNAME
+                                            60,                                                            # TTL
+                                            hostnameConverted)                                             # rdata
             self._entryGroup.Commit()
             self._entryGroup.connect_to_signal("StateChanged", self.onEntryGroupStateChanged)
         except Exception:
             logging.error("Avahi register domain name failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
-            self._unregisterService()
+            self._unregister()
             self._retryRegisterService()
 
-    def _unregisterService(self):
+    def _unregister(self):
         if self._retryRegisterTimer is not None:
             GLib.source_remove(self._retryRegisterTimer)
             self._retryRegisterTimer = None
@@ -439,7 +466,7 @@ class AvahiDomainNameRegister:
         if state in [0, 1, 2]:  # avahi.ENTRY_GROUP_UNCOMMITED, avahi.ENTRY_GROUP_REGISTERING, avahi.ENTRY_GROUP_ESTABLISHED
             pass
         elif state == 3:        # avahi.ENTRY_GROUP_COLLISION
-            self._unregisterService()
+            self._unregister()
             self._retryRegisterService()
         elif state == 4:        # avahi.ENTRY_GROUP_FAILURE
             assert False
@@ -461,5 +488,8 @@ class AvahiDomainNameRegister:
 
     def __timeoutRegisterService(self):
         self._retryRegisterTimer = None
-        self._registerService()                 # no exception in self._registerService()
+        self._register()                 # no exception in self._register()
         return False
+
+    def __strToDbusByteArray(self, s):
+        return [dbus.Byte(c) for c in s.encode("utf-8")]

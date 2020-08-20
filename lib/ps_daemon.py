@@ -4,6 +4,7 @@
 import os
 import sys
 import json
+import prctl
 import signal
 import shutil
 import logging
@@ -32,7 +33,7 @@ class PsDaemon:
             PsUtil.prepareTransientDir(PsConst.runDir, PsConst.uid, PsConst.gid, 0o755)
             PsUtil.prepareTransientDir(PsConst.tmpDir, PsConst.uid, PsConst.gid, 0o755)
 
-            with DropPriviledge(PsConst.uid, PsConst.gid):
+            with DropPriviledge(PsConst.uid, PsConst.gid, caps=[prctl.CAP_NET_BIND_SERVICE]):
                 try:
                     # initialize logging
                     sys.stdout = StdoutRedirector(os.path.join(PsConst.logDir, "pservers.out"))
@@ -56,15 +57,15 @@ class PsDaemon:
                         raise Exception("no plugin loaded")
                     logging.info("Plugins loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
 
+                    # register domain names
+                    # self.param.avahiObj = AvahiDomainNameRegister(self.param.listenIp)
+                    # for serverObj in self.param.serverDict.values():
+                    #     self.param.avahiObj.add_domain_name(serverObj.domainName)
+                    # self.param.avahiObj.start()
+
                     # slave servers
                     # this function shows log messages
                     self.param.slaveServers = PsSlaveServers(self.param)
-
-                    # register domain names
-                    self.param.avahiObj = AvahiDomainNameRegister()
-                    for serverObj in self.param.serverDict.values():
-                        self.param.avahiObj.add_domain_name(serverObj.domainName, self.param.listenIp)
-                    self.param.avahiObj.start()
 
                     # start main loop
                     logging.info("Mainloop begins.")
