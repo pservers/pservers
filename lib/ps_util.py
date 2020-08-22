@@ -9,6 +9,7 @@ import time
 import dbus
 import stat
 import prctl
+import ctypes
 import shutil
 import random
 import hashlib
@@ -281,6 +282,19 @@ class PsUtil:
         f = open(filename, 'w')
         f.close()
 
+    @staticmethod
+    def getSyscallNumber(syscallName):
+        # syscallName example: "SYS_prctl"
+        out = PsUtil.cmdCallWithInput("/usr/bin/gcc", "#include <sys/syscall.h>\n%s" % (syscallName), "-E", "-")
+        syscall_number = out.split("\n")[-1]
+        try:
+            syscall_number = int(syscall_number)
+        except ValueError:
+            raise Exception("failed to get syscall number for %s" % (syscallName))
+        if not 0 <= syscall_number <= 999:
+            raise Exception("failed to get syscall number for %s" % (syscallName))
+        return syscall_number
+
 
 class StdoutRedirector:
 
@@ -305,24 +319,29 @@ class DynObject:
 
 class DropPriviledge:
 
-    def __init__(self, uid, gid, caps=None):
+    def __init__(self, uid, gid, caps=[]):
         assert os.getuid() == 0
         assert os.getgid() == 0
 
-        if caps is not None:
+        self._oldInheritable = None
+        self._oldAmbient = None
+        self._oldKeepCaps = None
+        self._oldNoSetuidFixup = None
+
+        if len(caps) > 0:
+            assert caps == [prctl.CAP_NET_BIND_SERVICE]                     # FIXME
+
+            # self._oldInheritable =                                        # FIXME
+            # self._oldAmbient =                                            # FIXME
+            self._oldKeepCaps = prctl.securebits.keep_caps
+            self._oldNoSetuidFixup = prctl.securebits.no_setuid_fixup
+            prctl.cap_inheritable.net_bind_service = True                   # FIXME, prctl.cap_inheritable.limit() has no effect
+            self._capAmbientRaise(caps)                                     # FIXME
             prctl.securebits.keep_caps = True
             prctl.securebits.no_setuid_fixup = True
 
         os.setresgid(gid, gid, 0)       # must change gid first
         os.setresuid(uid, uid, 0)
-
-        if caps is not None:
-            prctl.capbset.limit(*caps)
-            try:
-                prctl.cap_permitted.limit(*caps)
-            except PermissionError:
-                pass
-            prctl.cap_effective.limit(*caps)
 
     def __enter__(self):
         return self
@@ -330,6 +349,28 @@ class DropPriviledge:
     def __exit__(self, type, value, traceback):
         os.setuid(0)
         os.setgid(0)
+
+        if self._oldNoSetuidFixup is not None:
+            prctl.securebits.no_setuid_fixup = self._oldNoSetuidFixup
+        if self._oldKeepCaps is not None:
+            prctl.securebits.keep_caps = self._oldKeepCaps
+        if self._oldAmbient is not None:
+            assert False            # FIXME
+        if self._oldInheritable is not None:
+            assert False            # FIXME
+
+    def _capAmbientRaise(self, caps):
+        # this function calls SYS_prctl directly, because ambient set is not supported by prctl module yet
+
+        _prctl = ctypes.CDLL(None).syscall
+        _prctl.restype = ctypes.c_int
+        _prctl.argtypes = ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong
+
+        _PR_CAP_AMBIENT = 47            # from <linux/prctl.h>
+        _PR_CAP_AMBIENT_RAISE = 2       # from <linux/prctl.h>
+
+        for cap in caps:
+            _prctl(PsUtil.getSyscallNumber("SYS_prctl"), _PR_CAP_AMBIENT, _PR_CAP_AMBIENT_RAISE, cap, 0, 0)
 
 
 class AvahiDomainNameRegister:
@@ -493,3 +534,4 @@ class AvahiDomainNameRegister:
 
     def __strToDbusByteArray(self, s):
         return [dbus.Byte(c) for c in s.encode("utf-8")]
+

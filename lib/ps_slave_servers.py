@@ -38,12 +38,12 @@ class PsSlaveServers:
         # start servers
         if self.httpServer is not None:
             self.httpServer.start()
-        if self.ftpServer is not None:
-            self.ftpServer.start()
+        # if self.ftpServer is not None:
+        #     self.ftpServer.start()
 
     def dispose(self):
-        if self.ftpServer is not None:
-            self.ftpServer.stop()
+        # if self.ftpServer is not None:
+        #     self.ftpServer.stop()
         if self.httpServer is not None:
             self.httpServer.stop()
 
@@ -95,7 +95,7 @@ class _HttpServer:
         userInfo = ("write", "klaus", "write")      # (username, scope, password)
         for name, realPath in self._gitDirDict.items():
             # htdigest file
-            htdigestFn = os.path.join(PsConst.tmpDir, "auth-%s.htdigest")
+            htdigestFn = os.path.join(PsConst.tmpDir, "auth-%s.htdigest" % (name))
             PsUtil.generateApacheHtdigestFile(htdigestFn, [userInfo])
 
             # wsgi script
