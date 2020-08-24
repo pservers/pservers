@@ -58,10 +58,10 @@ class PsDaemon:
                     logging.info("Plugins loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
 
                     # register domain names
-                    # self.param.avahiObj = AvahiDomainNameRegister(self.param.listenIp)
-                    # for serverObj in self.param.serverDict.values():
-                    #     self.param.avahiObj.add_domain_name(serverObj.domainName)
-                    # self.param.avahiObj.start()
+                    self.param.avahiObj = AvahiDomainNameRegister()
+                    for serverObj in self.param.serverDict.values():
+                        self.param.avahiObj.add_domain_name(serverObj.domainName)
+                    self.param.avahiObj.start()
 
                     # slave servers
                     # this function shows log messages

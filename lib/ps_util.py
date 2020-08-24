@@ -15,6 +15,7 @@ import random
 import hashlib
 import logging
 import subprocess
+import encodings.idna
 from gi.repository import GLib
 from OpenSSL import crypto
 from dbus.mainloop.glib import DBusGMainLoop
@@ -377,19 +378,15 @@ class AvahiDomainNameRegister:
 
     """
     Exampe:
-        obj = AvahiServiceRegister()
+        obj = AvahiDomainNameRegister()
         obj.add_domain_name(domainName)
         obj.start()
         obj.stop()
     """
 
-    def __init__(self, ipStrategy="static", ipAddr="0.0.0.0"):
-        assert ipStrategy == "static" and ipAddr == "0.0.0.0"
-        # assert ipStrategy in ["static", "dedicate"]
-
+    def __init__(self):
         self.retryInterval = 30
-        self.ipStrategy = ipStrategy
-        self.ipAddr = ipAddr
+        self.interfaceList = []
         self.domainList = []
 
         self._server = None
@@ -462,23 +459,18 @@ class AvahiDomainNameRegister:
         try:
             self._entryGroup = dbus.Interface(dbus.SystemBus().get_object("org.freedesktop.Avahi", self._server.EntryGroupNew()),
                                               "org.freedesktop.Avahi.EntryGroup")
+            hostname = self._server.GetHostNameFqdn()
+            hostnameRData = self.__encodeRDATA(hostname)
             for domainName in self.domainList:
-                if self.ipAddr != "0.0.0.0":
-                    self._entryGroup.AddAddress(-1,                                  # interface = avahi.IF_UNSPEC
-                                                0,                                   # protocol = avahi.PROTO_UNSPEC
-                                                dbus.UInt32(0),                      # flags
-                                                domainName,                          # name
-                                                self.ipAddr)                         # address
-                else:
-                    hostnameConverted = self.__strToDbusByteArray(self._server.GetHostNameFqdn())
-                    self._entryGroup.AddRecord(-1,                                                         # interface = avahi.IF_UNSPEC
-                                            0           ,                                                  # protocol = avahi.PROTO_UNSPEC
-                                            dbus.UInt32(0),                                                # flags
-                                            domainName,                                                    # name
-                                            0x01,                                                          # CLASS_IN
-                                            0X05,                                                          # TYPE_CNAME
-                                            60,                                                            # TTL
-                                            hostnameConverted)                                             # rdata
+                print(domainName)
+                self._entryGroup.AddRecord(-1,                                                            # interface = avahi.IF_UNSPEC
+                                           0,                                                             # protocol = avahi.PROTO_UNSPEC
+                                           dbus.UInt32(0),                                                # flags
+                                           self.__encodeCNAME(domainName),                                # name
+                                           0x01,                                                          # CLASS_IN
+                                           0X05,                                                          # TYPE_CNAME
+                                           60,                                                            # TTL
+                                           hostnameRData)                                                 # rdata
             self._entryGroup.Commit()
             self._entryGroup.connect_to_signal("StateChanged", self.onEntryGroupStateChanged)
         except Exception:
@@ -532,6 +524,14 @@ class AvahiDomainNameRegister:
         self._register()                 # no exception in self._register()
         return False
 
-    def __strToDbusByteArray(self, s):
-        return [dbus.Byte(c) for c in s.encode("utf-8")]
+    def __encodeCNAME(self, name):
+        return encodings.idna.ToASCII(name)
 
+    def __encodeRDATA(self, name):
+        ret = b''
+        for part in encodings.idna.ToASCII(name).split(b'.'):
+            if part is not None:
+                ret += chr(len(part)).encode("iso8859-1")
+                ret += part
+        ret += b'\0'
+        return ret

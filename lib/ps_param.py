@@ -38,7 +38,6 @@ class PsParam:
     def __init__(self):
         self.serverDict = dict()
 
-        self.ipStrategy = "static"            # dedicate
         self.listenIp = "0.0.0.0"
 
         # objects

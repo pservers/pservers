@@ -1,0 +1,12 @@
+TODO:
+1. request dedicated ip address if needed (port conflict)
+2. active-active
+
+server base:
+1. plugin-based server
+2. config-based server
+
+server type:
+1. file
+2. git
+
