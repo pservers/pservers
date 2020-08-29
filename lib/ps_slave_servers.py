@@ -38,12 +38,12 @@ class PsSlaveServers:
         # start servers
         if self.httpServer is not None:
             self.httpServer.start()
-        # if self.ftpServer is not None:
-        #     self.ftpServer.start()
+        if self.ftpServer is not None:
+            self.ftpServer.start()
 
     def dispose(self):
-        # if self.ftpServer is not None:
-        #     self.ftpServer.stop()
+        if self.ftpServer is not None:
+            self.ftpServer.stop()
         if self.httpServer is not None:
             self.httpServer.stop()
 
@@ -52,6 +52,7 @@ class _HttpServer:
 
     def __init__(self, param):
         self.param = param
+        self._rootDir = os.path.join(PsConst.tmpDir, "httpd.root")
         self._cfgFn = os.path.join(PsConst.tmpDir, "httpd.conf")
         self._pidFile = os.path.join(PsConst.tmpDir, "httpd.pid")
         self._errorLogFile = os.path.join(PsConst.logDir, "httpd-error.log")
@@ -79,7 +80,7 @@ class _HttpServer:
 
     def start(self):
         assert self._proc is None
-        self._generateKlausFiles()
+        self._generateFiles()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.httpPort, self._proc)
@@ -91,7 +92,10 @@ class _HttpServer:
             self._proc.wait()
             self._proc = None
 
-    def _generateKlausFiles(self):
+    def _generateFiles(self):
+        # virtual root directory
+        PsUtil.ensureDir(self._rootDir)
+
         userInfo = ("write", "klaus", "write")      # (username, scope, password)
         for name, realPath in self._gitDirDict.items():
             # htdigest file
@@ -102,12 +106,15 @@ class _HttpServer:
             wsgiFn = os.path.join(PsConst.tmpDir, "wsgi-%s.py" % (name))
             with open(wsgiFn, "w") as f:
                 buf = ''
+                buf += '#!/usr/bin/python3\n'
+                buf += '# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-\n'
+                buf += '\n'
                 buf += 'from klaus.contrib.wsgi_autoreloading import make_autoreloading_app\n'
                 buf += '\n'
-                buf += 'app = make_autoreloading_app("%s", "%s",\n' % (realPath, name)
-                buf += '                             use_smarthttp=True,\n'
-                buf += '                             unauthenticated_push=True,\n'
-                buf += '                             htdigest_file=open("%s"))\n' % (htdigestFn)
+                buf += 'application = make_autoreloading_app("%s", "%s",\n' % (realPath, name)
+                buf += '                                     use_smarthttp=True,\n'
+                buf += '                                     unauthenticated_push=True,\n'
+                buf += '                                     htdigest_file=open("%s"))\n' % (htdigestFn)
                 f.write(buf)
 
             self._gitFilesDict[name] = (htdigestFn, wsgiFn)
@@ -121,16 +128,22 @@ class _HttpServer:
         buf += "LoadModule alias_module           %s/mod_alias.so\n" % (modulesDir)
         buf += "LoadModule authz_core_module      %s/mod_authz_core.so\n" % (modulesDir)            # it's strange why we need this module and Require directive since we have no auth at all
         buf += "LoadModule autoindex_module       %s/mod_autoindex.so\n" % (modulesDir)
+        buf += "LoadModule wsgi_module            %s/mod_wsgi.so\n" % (modulesDir)
         # buf += "LoadModule env_module             %s/mod_env.so\n" % (modulesDir)
-        # buf += "LoadModule cgi_module             %s/mod_cgi.so\n" % (modulesDir)
         buf += "\n"
         buf += 'PidFile "%s"\n' % (self._pidFile)
         buf += 'ErrorLog "%s"\n' % (self._errorLogFile)
         buf += r'LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" common' + "\n"
         buf += 'CustomLog "%s" common\n' % (self._accessLogFile)
         buf += "\n"
-        buf += "ServerName none\n"                          # dummy value
         buf += "Listen %d http\n" % (PsConst.httpPort)
+        buf += "\n"
+        buf += "ServerName none\n"                          # dummy value
+        buf += 'DocumentRoot "%s"\n' % (self._rootDir)
+        buf += '<Directory "%s">\n' % (self._rootDir)
+        buf += '    Options Indexes\n'
+        buf += '    Require all granted\n'
+        buf += '</Directory>\n'
         buf += "\n"
 
         for name, realPath in self._dirDict.items():
@@ -144,14 +157,12 @@ class _HttpServer:
             buf += '</VirtualHost>\n'
             buf += '\n'
 
-        # for name, realPath in self._gitDirDict.items():
-        #     buf += '<VirtualHost *>\n'
-        #     buf += '    ServerName %s\n' % (name)
-        #     buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
-        #     buf += '    WSGIDaemonProcess\n'
-        #     buf += '    WSGIProcessGroup \n'
-        #     buf += '</VirtualHost>\n'
-        #     buf += '\n'
+        for name, realPath in self._gitDirDict.items():
+            buf += '<VirtualHost *>\n'
+            buf += '    ServerName %s\n' % (name)
+            buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
+            buf += '</VirtualHost>\n'
+            buf += '\n'
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
@@ -163,6 +174,7 @@ class _FtpServer:
         self.param = param
         self._cfgFn = os.path.join(PsConst.tmpDir, "ftpd.conf")
         self._pidFile = os.path.join(PsConst.tmpDir, "ftpd.pid")
+        self._scoreBoardFile = os.path.join(PsConst.tmpDir, "ftpd.scoreboard")
         self._errorLogFile = os.path.join(PsConst.logDir, "ftpd-error.log")
         self._accessLogFile = os.path.join(PsConst.logDir, "ftpd-access.log")
 
@@ -178,7 +190,7 @@ class _FtpServer:
     def start(self):
         assert self._proc is None
         self._generateCfgFn()
-        self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-f", self._cfgFn, "-n"])
+        self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-c", self._cfgFn, "-n"])
         PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._proc)
         logging.info("Server (ftp) started, listening on port %d." % (PsConst.ftpPort))
 
@@ -194,37 +206,39 @@ class _FtpServer:
         buf += 'ServerType standalone\n'
         buf += 'DefaultServer on\n'
         buf += 'RequireValidShell off\n'
+        buf += 'User %s\n' % (PsConst.user)
+        buf += 'Group %s\n' % (PsConst.group)
         buf += 'AuthPAM off\n'
+        buf += 'WtmpLog off\n'
         buf += 'Port %d\n' % (PsConst.ftpPort)
+        buf += 'PidFile %s\n' % (self._pidFile)
+        buf += 'ScoreboardFile %s\n' % (self._scoreBoardFile)
         buf += 'Umask 022\n'
+        buf += '\n'
 
-        for name, realPath in self._dirDict.items():
-            buf += 'DefaultRoot %s\n' % (realPath)
+        # FIXME: very few ftp clients support rfc7151, so we can only have one VirtualHost
+        if "fpemud-distfiles.private.local" in self._dirDict:
+            tmpDict = dict()
+            tmpDict["fpemud-distfiles.private.local"] = self._dirDict["fpemud-distfiles.private.local"]
+        else:
+            assert len(self._dirDict) == 1
+            tmpDict = self._dirDict
 
-            # # Generally files are overwritable.
-            # AllowOverwrite on
-
-            # # Disallow the use of the SITE CHMOD command.
-            # <Limit SITE_CHMOD>
-            # DenyAll
-            # </Limit>
-
-            # # A basic anonymous FTP account without an upload directory.
-            # <Anonymous ~ftp>
-            # User ftp
-            # Group ftp
-
-            # # Clients can login with the username "anonymous" and "ftp".
-            # UserAlias anonymous ftp
-
-            # # Limit the maximum number of parallel anonymous logins to 10.
-            # MaxClients 10
-
-            # # Prohibit the WRITE command for the anonymous users.
-            # <Limit WRITE>
-            #     DenyAll
-            # </Limit>
-            # </Anonymous>
+        # for name, realPath in self._dirDict.items():
+        for name, realPath in tmpDict.items():
+            buf += '<VirtualHost %s>\n' % (name)
+            buf += '    <Anonymous %s>\n' % (realPath)
+            buf += '        User %s\n' % (PsConst.user)
+            buf += '        Group %s\n' % (PsConst.group)
+            buf += '        UserAlias anonymous %s\n' % (PsConst.user)
+            buf += '        <Directory *>\n'
+            buf += '            <Limit WRITE>\n'
+            buf += '                DenyAll\n'
+            buf += '            </Limit>\n'
+            buf += '        </Directory>\n'
+            buf += '    </Anonymous>\n'
+            buf += '</VirtualHost>\n'
+            buf += '\n'
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
