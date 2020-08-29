@@ -462,7 +462,6 @@ class AvahiDomainNameRegister:
             hostname = self._server.GetHostNameFqdn()
             hostnameRData = self.__encodeRDATA(hostname)
             for domainName in self.domainList:
-                print(domainName)
                 self._entryGroup.AddRecord(-1,                                                            # interface = avahi.IF_UNSPEC
                                            0,                                                             # protocol = avahi.PROTO_UNSPEC
                                            dbus.UInt32(0),                                                # flags
