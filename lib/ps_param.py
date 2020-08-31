@@ -27,6 +27,7 @@ class PsConst:
 
     httpPort = 80
     ftpPort = 21
+    gitPort = 9418
 
     mainCfgFile = os.path.join(etcDir, "main.conf")
     pluginCfgFileGlobPattern = os.path.join(etcDir, "plugin-*.conf")

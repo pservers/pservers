@@ -14,6 +14,7 @@ class PsSlaveServers:
         self.param = param
         self.httpServer = None
         self.ftpServer = None
+        self.gitServer = None
 
         # register servers by advertise type
         for serverObj in self.param.serverDict.values():
@@ -33,6 +34,11 @@ class PsSlaveServers:
                         self.httpServer = _HttpServer(self.param)
                     self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)
                     continue
+                if serverObj.serverType == "git" and advertiseType == "git":
+                    if self.gitServer is None:
+                        self.gitServer = _MultiInstanceGitServer(self.param)
+                    self.gitServer.addGitDir(serverObj.domainName, serverObj.dataDir)
+                    continue
                 assert False
 
         # start servers
@@ -40,12 +46,16 @@ class PsSlaveServers:
             self.httpServer.start()
         if self.ftpServer is not None:
             self.ftpServer.start()
+        if self.gitServer is not None:
+            self.gitServer.start()
 
     def dispose(self):
         if self.ftpServer is not None:
             self.ftpServer.stop()
         if self.httpServer is not None:
             self.httpServer.stop()
+        if self.gitServer is not None:
+            self.gitServer.stop()
 
 
 class _HttpServer:
@@ -242,6 +252,42 @@ class _FtpServer:
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
+
+
+class _MultiInstanceGitServer:
+
+    def __init__(self, param):
+        self.param = param
+
+        self._dirDict = dict()      # <domain-name,repository-directory>
+        self._procDict = dict()     # <domain-name,process>
+
+    def addGitDir(self, name, realPath):
+        assert len(self._procDict) == 0
+        assert _checkNameAndRealPath(self._dirDict, name, realPath)
+        self._dirDict[name] = realPath
+
+    def start(self):
+        assert len(self._procDict) == 0
+
+        # FIXME: we don't support allocate new ip and starts multiple servers
+        assert len(self._dirDict) == 1
+
+        for name, realPath in self._dirDict.items():
+            self._procDict[name] = subprocess.Popen([
+                "/usr/libexec/git-core/git-daemon",
+                "--export-all",
+                "--listen=%s" % (self.param.listenIp),
+                "--port=%d" % (PsConst.gitPort),
+                "--base-path=%s" % (realPath),
+            ])
+            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.gitPort, self._procDict[name])
+            logging.info("Slave server (git) for %s started." % (name))
+
+    def stop(self):
+        for proc in self._procDict.values():
+            PsUtil.procTerminate(proc, wait=True)
+        self._procDict = dict()
 
 
 def _checkNameAndRealPath(dictObj, name, realPath):

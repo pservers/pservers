@@ -24,6 +24,13 @@ from dbus.mainloop.glib import DBusGMainLoop
 class PsUtil:
 
     @staticmethod
+    def procTerminate(proc, wait=False):
+        if proc.poll() is None:
+            proc.terminate()
+        if wait:
+            proc.wait()
+
+    @staticmethod
     def generateApacheHtdigestFile(filename, userInfoList):
         # userInfoList: [(username, realm, password), ...]
         with open(filename, "w") as f:
