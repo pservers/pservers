@@ -282,7 +282,7 @@ class _MultiInstanceGitServer:
                 "--base-path=%s" % (realPath),
             ])
             PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.gitPort, self._procDict[name])
-            logging.info("Slave server (git) for %s started." % (name))
+            logging.info("Slave server \"git://%s\" started." % (name))
 
     def stop(self):
         for proc in self._procDict.values():
