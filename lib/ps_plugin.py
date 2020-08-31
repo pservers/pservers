@@ -75,7 +75,7 @@ class PsServer:
         if not self.domainName.endswith(".private"):
             raise Exception("server %s: invalid domain-name %s" % (self.id, self.domainName))
         # FIXME
-        self.domainName += ".local"
+        self.domainName = self.domainName.replace(".private", ".local")
 
         # server type
         self.serverType = rootElem.xpathEval(".//server-type")[0].getContent()
