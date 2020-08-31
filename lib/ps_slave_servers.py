@@ -213,7 +213,7 @@ class _MultiInstanceFtpServer:
             cfg["port"] = PsConst.ftpPort
             cfg["dir"] = realPath
             self._procDict[name] = subprocess.Popen([os.path.join(PsConst.libexecDir, "ftpd.py"), json.dumps(cfg)])
-            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.gitPort, self._procDict[name])
+            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._procDict[name])
             logging.info("Slave server \"ftp://%s\" started." % (name))
 
     def stop(self):
