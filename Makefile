@@ -14,6 +14,11 @@ install:
 	find "$(DESTDIR)/$(prefix)/lib64/pservers" -type f -maxdepth 1 | xargs chmod 644
 	find "$(DESTDIR)/$(prefix)/lib64/pservers" -type d -maxdepth 1 | xargs chmod 755
 
+	install -d -m 0755 "$(DESTDIR)/$(prefix)/libexec/pservers"
+	cp -r libexec/* "$(DESTDIR)/$(prefix)/libexec/pservers"
+	find "$(DESTDIR)/$(prefix)/libexec/pservers" -type f -maxdepth 1 | xargs chmod 755
+	find "$(DESTDIR)/$(prefix)/libexec/pservers" -type d -maxdepth 1 | xargs chmod 755
+
 	install -d -m 0755 "$(DESTDIR)/etc/pservers"
 
 	install -d -m 0755 "$(DESTDIR)/lib/systemd/system"
