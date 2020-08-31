@@ -29,7 +29,7 @@ class PsSlaveServers:
                         self.ftpServer = _FtpServer(self.param)
                     self.ftpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
                     continue
-                if serverObj.serverType == "git" and advertiseType == "klaus":
+                if serverObj.serverType == "git" and advertiseType == "http":
                     if self.httpServer is None:
                         self.httpServer = _HttpServer(self.param)
                     self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)

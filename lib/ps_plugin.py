@@ -90,7 +90,7 @@ class PsServer:
                 if value not in ["http", "ftp"]:
                     raise Exception("server %s: invalid advertise mode %s" % (self.id, value))
             elif self.serverType == "git":
-                if value not in ["klaus"]:
+                if value not in ["http", "git"]:
                     raise Exception("server %s: invalid advertise mode %s" % (self.id, value))
             else:
                 assert False
