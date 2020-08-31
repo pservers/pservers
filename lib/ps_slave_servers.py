@@ -217,9 +217,9 @@ class _FtpServer:
         buf += '\n'
 
         # FIXME: very few ftp clients support rfc7151, so we can only have one VirtualHost
-        if "fpemud-distfiles.private.local" in self._dirDict:
+        if "fpemud-distfiles.local" in self._dirDict:
             tmpDict = dict()
-            tmpDict["fpemud-distfiles.private.local"] = self._dirDict["fpemud-distfiles.private.local"]
+            tmpDict["fpemud-distfiles.local"] = self._dirDict["fpemud-distfiles.local"]
         else:
             assert len(self._dirDict) == 1
             tmpDict = self._dirDict
