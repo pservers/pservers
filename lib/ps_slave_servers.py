@@ -2,6 +2,7 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
+import json
 import logging
 import subprocess
 from ps_util import PsUtil
@@ -26,7 +27,7 @@ class PsSlaveServers:
                     continue
                 if serverObj.serverType == "file" and advertiseType == "ftp":
                     if self.ftpServer is None:
-                        self.ftpServer = _FtpServer(self.param)
+                        self.ftpServer = _MultiInstanceFtpServer(self.param)
                     self.ftpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
                     continue
                 if serverObj.serverType == "git" and advertiseType == "http":
@@ -178,55 +179,23 @@ class _HttpServer:
             f.write(buf)
 
 
-class _FtpServer:
+class _MultiInstanceFtpServer:
 
     def __init__(self, param):
         self.param = param
-        self._cfgFn = os.path.join(PsConst.tmpDir, "ftpd.conf")
-        self._pidFile = os.path.join(PsConst.tmpDir, "ftpd.pid")
-        self._scoreBoardFile = os.path.join(PsConst.tmpDir, "ftpd.scoreboard")
-        self._errorLogFile = os.path.join(PsConst.logDir, "ftpd-error.log")
-        self._accessLogFile = os.path.join(PsConst.logDir, "ftpd-access.log")
 
-        self._dirDict = dict()
-
-        self._proc = None
+        self._dirDict = dict()      # <domain-name,file-directory>
+        self._procDict = dict()     # <domain-name,process>
 
     def addFileDir(self, name, realPath):
-        assert self._proc is None
+        assert len(self._procDict) == 0
         assert _checkNameAndRealPath(self._dirDict, name, realPath)
         self._dirDict[name] = realPath
 
     def start(self):
-        assert self._proc is None
-        self._generateCfgFn()
-        self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-c", self._cfgFn, "-n"])
-        PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._proc)
-        logging.info("Server (ftp) started, listening on port %d." % (PsConst.ftpPort))
+        assert len(self._procDict) == 0
 
-    def stop(self):
-        if self._proc is not None:
-            self._proc.terminate()
-            self._proc.wait()
-            self._proc = None
-
-    def _generateCfgFn(self):
-        buf = ""
-        buf += 'ServerName "ProFTPD Default Server"\n'
-        buf += 'ServerType standalone\n'
-        buf += 'DefaultServer on\n'
-        buf += 'RequireValidShell off\n'
-        buf += 'User %s\n' % (PsConst.user)
-        buf += 'Group %s\n' % (PsConst.group)
-        buf += 'AuthPAM off\n'
-        buf += 'WtmpLog off\n'
-        buf += 'Port %d\n' % (PsConst.ftpPort)
-        buf += 'PidFile %s\n' % (self._pidFile)
-        buf += 'ScoreboardFile %s\n' % (self._scoreBoardFile)
-        buf += 'Umask 022\n'
-        buf += '\n'
-
-        # FIXME: very few ftp clients support rfc7151, so we can only have one VirtualHost
+        # FIXME: we don't support allocate new ip and starts multiple servers
         if "fpemud-distfiles.local" in self._dirDict:
             tmpDict = dict()
             tmpDict["fpemud-distfiles.local"] = self._dirDict["fpemud-distfiles.local"]
@@ -236,22 +205,21 @@ class _FtpServer:
 
         # for name, realPath in self._dirDict.items():
         for name, realPath in tmpDict.items():
-            buf += '<VirtualHost %s>\n' % (name)
-            buf += '    <Anonymous %s>\n' % (realPath)
-            buf += '        User %s\n' % (PsConst.user)
-            buf += '        Group %s\n' % (PsConst.group)
-            buf += '        UserAlias anonymous %s\n' % (PsConst.user)
-            buf += '        <Directory *>\n'
-            buf += '            <Limit WRITE>\n'
-            buf += '                DenyAll\n'
-            buf += '            </Limit>\n'
-            buf += '        </Directory>\n'
-            buf += '    </Anonymous>\n'
-            buf += '</VirtualHost>\n'
-            buf += '\n'
+            cfg = dict()
+            cfg["logFile"] = os.path.join(PsConst.logDir, "ftp." + name + ".log")
+            cfg["logMaxBytes"] = PsConst.updaterLogFileSize
+            cfg["logBackupCount"] = PsConst.updaterLogFileCount
+            cfg["ip"] = self.param.listenIp
+            cfg["port"] = PsConst.ftpPort
+            cfg["dir"] = realPath
+            self._procDict[name] = subprocess.Popen([os.path.join(PsConst.libexecDir, "ftpd.py"), json.dumps(cfg)])
+            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.gitPort, self._procDict[name])
+            logging.info("Slave server \"ftp://%s\" started." % (name))
 
-        with open(self._cfgFn, "w") as f:
-            f.write(buf)
+    def stop(self):
+        for proc in self._procDict.values():
+            PsUtil.procTerminate(proc, wait=True)
+        self._procDict = dict()
 
 
 class _MultiInstanceGitServer:
