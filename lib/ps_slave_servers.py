@@ -172,6 +172,7 @@ class _HttpServer:
             buf += '<VirtualHost *>\n'
             buf += '    ServerName %s\n' % (name)
             buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
+            buf += '    WSGIChunkedRequest On\n'
             buf += '</VirtualHost>\n'
             buf += '\n'
 
