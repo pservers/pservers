@@ -278,7 +278,7 @@ class PsUtil:
         ipPattern = ip.replace(".", "\\.").replace(":", "\\:")
         while proc.poll() is None:
             time.sleep(0.1)
-            out = McUtil.cmdCall("/bin/netstat", "-lant")
+            out = PsUtil.cmdCall("/bin/netstat", "-lant")
             if ":" not in ip:
                 # ipv4
                 if re.search("tcp +[0-9]+ +[0-9]+ +(%s:%d) +.*" % (ipPattern, port), out) is not None:
