@@ -275,13 +275,21 @@ class PsUtil:
 
     @staticmethod
     def waitTcpServiceForProc(ip, port, proc):
-        ip = ip.replace(".", "\\.")
+        ipPattern = ip.replace(".", "\\.").replace(":", "\\:")
         while proc.poll() is None:
             time.sleep(0.1)
-            out = PsUtil.cmdCall("/bin/netstat", "-lant")
-            m = re.search("tcp +[0-9]+ +[0-9]+ +(%s:%d) +.*" % (ip, port), out)
-            if m is not None:
-                return
+            out = McUtil.cmdCall("/bin/netstat", "-lant")
+            if ":" not in ip:
+                # ipv4
+                if re.search("tcp +[0-9]+ +[0-9]+ +(%s:%d) +.*" % (ipPattern, port), out) is not None:
+                    return
+                if ip == "0.0.0.0":
+                    if re.search("tcp6 +[0-9]+ +[0-9]+ +(\\:\\:\\:%d) +.*" % (port), out) is not None:
+                        return
+            else:
+                # ipv6
+                if re.search("tcp6 +[0-9]+ +[0-9]+ +(%s\\:%d) +.*" % (ipPattern, port), out) is not None:
+                    return
         raise Exception("process terminated")
 
     @staticmethod
