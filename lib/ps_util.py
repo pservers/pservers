@@ -281,14 +281,14 @@ class PsUtil:
             out = PsUtil.cmdCall("/bin/netstat", "-lant")
             if ":" not in ip:
                 # ipv4
-                if re.fullmatch("tcp +[0-9]+ +[0-9]+ +(%s\\:%d) +.*" % (ipPattern, port), out):
+                if re.search("^tcp +[0-9]+ +[0-9]+ +(%s\\:%d) +(.*) +LISTEN *$" % (ipPattern, port), out, re.M):
                     return
                 if ip == "0.0.0.0":
-                    if re.fullmatch("tcp6 +[0-9]+ +[0-9]+ +(\\:\\:\\:%d) +.*" % (port), out):
+                    if re.search("^tcp6 +[0-9]+ +[0-9]+ +(\\:\\:\\:%d) +(.*) +LISTEN *$" % (port), out, re.M):
                         return
             else:
                 # ipv6
-                if re.fullmatch("tcp6 +[0-9]+ +[0-9]+ +(%s\\:%d) +.*" % (ipPattern, port), out):
+                if re.search("^tcp6 +[0-9]+ +[0-9]+ +(%s\\:%d) +(.*) +LISTEN *$" % (ipPattern, port), out, re.M):
                     return
         raise Exception("process terminated")
 
