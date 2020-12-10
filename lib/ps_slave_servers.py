@@ -94,7 +94,7 @@ class _HttpServer:
         self._generateFiles()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
-        PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.httpPort, self._proc)
+        PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.httpPort, self._proc)
         logging.info("Server (http) started, listening on port %d." % (PsConst.httpPort))
 
     def stop(self):
@@ -214,7 +214,7 @@ class _MultiInstanceFtpServer:
             cfg["port"] = PsConst.ftpPort
             cfg["dir"] = realPath
             self._procDict[name] = subprocess.Popen([os.path.join(PsConst.libexecDir, "ftpd.py"), json.dumps(cfg)])
-            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._procDict[name])
+            PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.ftpPort, self._procDict[name])
             logging.info("Slave server \"ftp://%s\" started." % (name))
 
     def stop(self):
@@ -250,7 +250,7 @@ class _MultiInstanceGitServer:
                 "--port=%d" % (PsConst.gitPort),
                 "--base-path=%s" % (realPath),
             ])
-            PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.gitPort, self._procDict[name])
+            PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.gitPort, self._procDict[name])
             logging.info("Slave server \"git://%s\" started." % (name))
 
     def stop(self):

@@ -22,7 +22,7 @@ class _FtpServer:
         assert self._proc is None
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/proftpd", "-c", self._cfgFn, "-n"])
-        PsUtil.waitTcpServiceForProc(self.param.listenIp, PsConst.ftpPort, self._proc)
+        PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.ftpPort, self._proc)
         logging.info("Server (ftp) started, listening on port %d." % (PsConst.ftpPort))
 
     def stop(self):
