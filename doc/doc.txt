@@ -1,11 +1,15 @@
 TODO:
+1. changes to ".private" domain name
 2. active-active
+3. external server support
 
-server base:
-1. plugin-based server
-2. config-based server
 
-server type:
+pserver contain two kinds of servers:
+1. built-in server
+2. external server: use pserver as a proxy
+
+
+built-in server type:
 1. file          http-web w             (user: write)
                  httpdir r
 2. git           http-web w             (user: write)
@@ -16,9 +20,6 @@ server type:
                  httpdir r
                  rstp-over-http r
 
-every server has read account and write account.
-write account can edit the content in the server.
-
 write account can commit change so that pserver can sync to other pservers to implement active-active.
 after commit, server will record digest for its content, so that conflict can be reported in synchronization.
 git-annex is used as implementation for file data, and keeps some old data, we use this to replace the need for backup.
@@ -28,5 +29,6 @@ pserver can advertise "pserver._tcp" by avahi.
 this advertisement is used by active-active only. human user or other client should access by domain name.
 
 
-no git-protocol: it does not support one-server-multiple-domain
+no git-protocol: does not support one-server-multiple-domain
 no ftp-protocol: very few server/client supports one-server-multiple-domain
+no rstp-protocol: does not support one-server-multiple-domain
