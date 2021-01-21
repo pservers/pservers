@@ -1,5 +1,4 @@
 TODO:
-1. request dedicated ip address if needed (port conflict)
 2. active-active
 
 server base:
@@ -7,8 +6,15 @@ server base:
 2. config-based server
 
 server type:
-1. file          http r/w, ftp r
-2. git           http r/w, git r
+1. file          http-web w             (user: write)
+                 httpdir r
+2. git           http-web w             (user: write)
+                 http-web r
+                 git-over-http w        (user: write)
+                 git-over-http r
+3. media         http-web w             (user: write)
+                 httpdir r
+                 rstp-over-http r
 
 every server has read account and write account.
 write account can edit the content in the server.
@@ -22,3 +28,5 @@ pserver can advertise "pserver._tcp" by avahi.
 this advertisement is used by active-active only. human user or other client should access by domain name.
 
 
+no git-protocol: it does not support one-server-multiple-domain
+no ftp-protocol: very few server/client supports one-server-multiple-domain

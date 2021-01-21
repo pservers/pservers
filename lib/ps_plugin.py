@@ -81,17 +81,3 @@ class PsServer:
         self.serverType = rootElem.xpathEval(".//server-type")[0].getContent()
         if self.serverType not in ["file", "git"]:
             raise Exception("server %s: invalid server type %s" % (self.id, self.serverType))
-
-        # advertise type
-        self.advertiseTypeList = []
-        for child in rootElem.xpathEval(".//advertise-type"):
-            value = child.getContent()
-            if self.serverType == "file":
-                if value not in ["http", "ftp"]:
-                    raise Exception("server %s: invalid advertise mode %s" % (self.id, value))
-            elif self.serverType == "git":
-                if value not in ["http", "git"]:
-                    raise Exception("server %s: invalid advertise mode %s" % (self.id, value))
-            else:
-                assert False
-            self.advertiseTypeList.append(value)

@@ -2,7 +2,6 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
-import json
 import logging
 import subprocess
 from ps_util import PsUtil
@@ -14,49 +13,27 @@ class PsSlaveServers:
     def __init__(self, param):
         self.param = param
         self.httpServer = None
-        self.ftpServer = None
-        self.gitServer = None
 
         # register servers by advertise type
         for serverObj in self.param.serverDict.values():
-            for advertiseType in serverObj.advertiseTypeList:
-                if serverObj.serverType == "file" and advertiseType == "http":
-                    if self.httpServer is None:
-                        self.httpServer = _HttpServer(self.param)
-                    self.httpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
-                    continue
-                if serverObj.serverType == "file" and advertiseType == "ftp":
-                    if self.ftpServer is None:
-                        self.ftpServer = _MultiInstanceFtpServer(self.param)
-                    self.ftpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
-                    continue
-                if serverObj.serverType == "git" and advertiseType == "http":
-                    if self.httpServer is None:
-                        self.httpServer = _HttpServer(self.param)
-                    self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)
-                    continue
-                if serverObj.serverType == "git" and advertiseType == "git":
-                    if self.gitServer is None:
-                        self.gitServer = _MultiInstanceGitServer(self.param)
-                    self.gitServer.addGitDir(serverObj.domainName, serverObj.dataDir)
-                    continue
+            if serverObj.serverType == "file":
+                if self.httpServer is None:
+                    self.httpServer = _HttpServer(self.param)
+                self.httpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
+            elif serverObj.serverType == "git":
+                if self.httpServer is None:
+                    self.httpServer = _HttpServer(self.param)
+                self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)
+            else:
                 assert False
 
         # start servers
         if self.httpServer is not None:
             self.httpServer.start()
-        if self.ftpServer is not None:
-            self.ftpServer.start()
-        if self.gitServer is not None:
-            self.gitServer.start()
 
     def dispose(self):
-        if self.ftpServer is not None:
-            self.ftpServer.stop()
         if self.httpServer is not None:
             self.httpServer.stop()
-        if self.gitServer is not None:
-            self.gitServer.stop()
 
 
 class _HttpServer:
@@ -178,85 +155,6 @@ class _HttpServer:
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)
-
-
-class _MultiInstanceFtpServer:
-
-    def __init__(self, param):
-        self.param = param
-
-        self._dirDict = dict()      # <domain-name,file-directory>
-        self._procDict = dict()     # <domain-name,process>
-
-    def addFileDir(self, name, realPath):
-        assert len(self._procDict) == 0
-        assert _checkNameAndRealPath(self._dirDict, name, realPath)
-        self._dirDict[name] = realPath
-
-    def start(self):
-        assert len(self._procDict) == 0
-
-        # FIXME: we don't support allocate new ip and starts multiple servers
-        if "fpemud-distfiles.local" in self._dirDict:
-            tmpDict = dict()
-            tmpDict["fpemud-distfiles.local"] = self._dirDict["fpemud-distfiles.local"]
-        else:
-            assert len(self._dirDict) == 1
-            tmpDict = self._dirDict
-
-        # for name, realPath in self._dirDict.items():
-        for name, realPath in tmpDict.items():
-            cfg = dict()
-            cfg["logFile"] = os.path.join(PsConst.logDir, "ftp." + name + ".log")
-            cfg["logMaxBytes"] = PsConst.updaterLogFileSize
-            cfg["logBackupCount"] = PsConst.updaterLogFileCount
-            cfg["ip"] = self.param.listenIp
-            cfg["port"] = PsConst.ftpPort
-            cfg["dir"] = realPath
-            self._procDict[name] = subprocess.Popen([os.path.join(PsConst.libexecDir, "ftpd.py"), json.dumps(cfg)])
-            PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.ftpPort, self._procDict[name])
-            logging.info("Slave server \"ftp://%s\" started." % (name))
-
-    def stop(self):
-        for proc in self._procDict.values():
-            PsUtil.procTerminate(proc, wait=True)
-        self._procDict = dict()
-
-
-class _MultiInstanceGitServer:
-
-    def __init__(self, param):
-        self.param = param
-
-        self._dirDict = dict()      # <domain-name,repository-directory>
-        self._procDict = dict()     # <domain-name,process>
-
-    def addGitDir(self, name, realPath):
-        assert len(self._procDict) == 0
-        assert _checkNameAndRealPath(self._dirDict, name, realPath)
-        self._dirDict[name] = realPath
-
-    def start(self):
-        assert len(self._procDict) == 0
-
-        # FIXME: we don't support allocate new ip and starts multiple servers
-        assert len(self._dirDict) == 1
-
-        for name, realPath in self._dirDict.items():
-            self._procDict[name] = subprocess.Popen([
-                "/usr/libexec/git-core/git-daemon",
-                "--export-all",
-                "--listen=%s" % (self.param.listenIp),
-                "--port=%d" % (PsConst.gitPort),
-                "--base-path=%s" % (realPath),
-            ])
-            PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.gitPort, self._procDict[name])
-            logging.info("Slave server \"git://%s\" started." % (name))
-
-    def stop(self):
-        for proc in self._procDict.values():
-            PsUtil.procTerminate(proc, wait=True)
-        self._procDict = dict()
 
 
 def _checkNameAndRealPath(dictObj, name, realPath):
