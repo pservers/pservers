@@ -17,7 +17,7 @@ class PsPluginManager:
     def loadPlugins(self):
         for fn in glob.glob(PsConst.pluginCfgFileGlobPattern):
             pluginName = PsUtil.rreplace(os.path.basename(fn).replace("plugin-", "", 1), ".conf", "", 1)
-            pluginPath = os.path.join(PsConst.pluginsDir, pluginName)
+            pluginPath = os.path.join(PsConst.serversDir, pluginName)
             if not os.path.isdir(pluginPath):
                 continue
             pluginCfg = dict()
