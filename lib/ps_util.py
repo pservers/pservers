@@ -114,16 +114,6 @@ class PsUtil:
             os.chown(dirname, uid, gid)
 
     @staticmethod
-    def loadObject(filename, classname, *args):
-        try:
-            f = open(filename)
-            m = imp.load_module(filename[:-3], f, filename, ('.py', 'r', imp.PY_SOURCE))
-            objClass = getattr(m, classname)
-            return objClass(*args)
-        except Exception:
-            raise Exception("syntax error")
-
-    @staticmethod
     def splitToTuple(s, delimiter):
         return tuple(s.split(delimiter))
 
