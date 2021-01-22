@@ -46,7 +46,9 @@ def main():
 
     # dump result
     json.dump({
-        "module-dependencies": ["mod_wsgi.so"],
+        "module-dependencies": {
+            "wsgi_module": "mod_wsgi.so",
+        },
         "config-segment": buf,
     }, sys.stdout)
 
