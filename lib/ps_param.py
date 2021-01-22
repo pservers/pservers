@@ -9,8 +9,7 @@ import grp
 class PsConst:
 
     etcDir = "/etc/pservers"
-    libDir = "/usr/lib64/pservers"
-    libexecDir = "/usr/libexec/pservers"
+    libDir = "/usr/lib/pservers"
     pluginsDir = os.path.join(libDir, "plugins.d")
     serversDir = os.path.join(libDir, "servers.d")
 
