@@ -11,7 +11,8 @@ class PsConst:
     etcDir = "/etc/pservers"
     libDir = "/usr/lib64/pservers"
     libexecDir = "/usr/libexec/pservers"
-    serversDir = os.path.join(libDir, "plugins")
+    pluginsDir = os.path.join(libDir, "plugins.d")
+    serversDir = os.path.join(libDir, "plugins")            # FIXME
 
     varDir = "/var/lib/pservers"
     logDir = "/var/log/pservers"

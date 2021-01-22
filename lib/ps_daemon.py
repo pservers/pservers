@@ -52,7 +52,7 @@ class PsDaemon:
 
                     # load servers
                     self.serverManager = PsServerManager(self.param)
-                    self.serverManager.loadPlugins()
+                    self.serverManager.loadServers()
                     if len(self.param.serverDict) == 0:
                         raise Exception("no server loaded")
                     logging.info("Servers loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))

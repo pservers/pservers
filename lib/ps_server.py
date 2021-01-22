@@ -14,7 +14,7 @@ class PsServerManager:
     def __init__(self, param):
         self.param = param
 
-    def loadPlugins(self):
+    def loadServers(self):
         for fn in glob.glob(PsConst.pluginCfgFileGlobPattern):
             pluginName = PsUtil.rreplace(os.path.basename(fn).replace("plugin-", "", 1), ".conf", "", 1)
             pluginPath = os.path.join(PsConst.serversDir, pluginName)
