@@ -27,6 +27,7 @@ class PsMainHttpServer:
     def start(self):
         assert self._proc is None
         self._generateCfgFn()
+        PsUtil.ensureDir(self._rootDir)
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.httpPort, self._proc)
 
@@ -35,6 +36,7 @@ class PsMainHttpServer:
             self._proc.terminate()
             self._proc.wait()
             self._proc = None
+        PsUtil.forceDelete(self._rootDir)
 
     def _generateCfgFn(self):
         modulesDir = "/usr/lib64/apache2/modules"
