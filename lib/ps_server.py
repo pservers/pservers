@@ -4,7 +4,6 @@
 import os
 import glob
 import json
-import libxml2
 from ps_util import PsUtil
 from ps_param import PsConst
 
@@ -15,69 +14,53 @@ class PsServerManager:
         self.param = param
 
     def loadServers(self):
-        for fn in glob.glob(PsConst.pluginCfgFileGlobPattern):
-            pluginName = PsUtil.rreplace(os.path.basename(fn).replace("plugin-", "", 1), ".conf", "", 1)
-            pluginPath = os.path.join(PsConst.serversDir, pluginName)
-            if not os.path.isdir(pluginPath):
-                continue
-            pluginCfg = dict()
-            with open(os.path.join(PsConst.etcDir, fn), "r") as f:
-                buf = f.read()
-                if buf != "":
-                    pluginCfg = json.loads(buf)
-            self._load(pluginName, pluginPath, pluginCfg)
-
-    def _load(self, name, path, cfgDict):
-        # get metadata.xml file
-        metadata_file = os.path.join(path, "metadata.xml")
-        if not os.path.exists(metadata_file):
-            raise Exception("plugin %s has no metadata.xml" % (name))
-        if not os.path.isfile(metadata_file):
-            raise Exception("metadata.xml for plugin %s is not a file" % (name))
-        if not os.access(metadata_file, os.R_OK):
-            raise Exception("metadata.xml for plugin %s is invalid" % (name))
-
-        # check metadata.xml file content
-        # FIXME
-        tree = libxml2.parseFile(metadata_file)
-        # if True:
-        #     dtd = libxml2.parseDTD(None, constants.PATH_PLUGIN_DTD_FILE)
-        #     ctxt = libxml2.newValidCtxt()
-        #     messages = []
-        #     ctxt.setValidityErrorHandler(lambda item, msgs: msgs.append(item), None, messages)
-        #     if tree.validateDtd(ctxt, dtd) != 1:
-        #         msg = ""
-        #         for i in messages:
-        #             msg += i
-        #         raise exceptions.IncorrectPluginMetaFile(metadata_file, msg)
-
-        # get data from metadata.xml file
-        root = tree.getRootElement()
-
-        # create PsServer objects
-        obj = PsServer(self.param, path, root.xpathEval(".//server")[0], cfgDict)
-        assert obj.id not in self.param.serverDict
-        self.param.serverDict[obj.id] = obj
+        for dname in [PsConst.etcDir, PsConst.serversDir]:
+            for fn in glob.glob(os.path.join(dname, "*.server")):
+                serverName = PsUtil.rreplace(os.path.basename(fn), ".server", "", 1)
+                self.param.serverDict[serverName] = PsServer(self.param, serverName, fn)
 
 
 class PsServer:
 
-    def __init__(self, param, pluginDir, rootElem, cfgDict):
-        self.id = rootElem.prop("id")
-        self.cfgDict = cfgDict
+    def __init__(self, param, serverId, serverFile):
+        self.param = param
+
+        with open(serverFile, "r") as f:
+            cfgDict = json.load(f)
+
+        # server id
+        self.id = serverId
 
         # data directory
         self.dataDir = os.path.join(PsConst.varDir, self.id)
         PsUtil.ensureDir(self.dataDir)
 
         # domain name
-        self.domainName = rootElem.xpathEval(".//domain-name")[0].getContent()
+        self.domainName = cfgDict["domain-name"]
         if not self.domainName.endswith(".private"):
             raise Exception("server %s: invalid domain-name %s" % (self.id, self.domainName))
-        # FIXME
-        self.domainName = self.domainName.replace(".private", ".local")
+        self.domainName = self.domainName.replace(".private", ".local")                             # FIXME
+        del cfgDict["domain-name"]
 
         # server type
-        self.serverType = rootElem.xpathEval(".//server-type")[0].getContent()
-        if self.serverType not in ["file", "git"]:
+        self.serverType = cfgDict["server-type"]
+        if self.serverType not in self.param.pluginManager.getPluginNameList():
             raise Exception("server %s: invalid server type %s" % (self.id, self.serverType))
+        del cfgDict["server-type"]
+
+        # cfgDict
+        self.cfgDict = cfgDict
+
+        # pluginRuntimeData
+        self.pluginRuntimeData = None
+
+    def startAndGetMainHttpServerCfgSegment(self):
+        pluginObj = self.param.pluginManager.getPlugin(self.serverType)
+        cfgSeg, self.pluginRuntimeData = pluginObj.startAndGetMainHttpServerCfgSegment(self.id, self.dataDir)
+        return cfgSeg
+
+    def stop(self):
+        if self.pluginRuntimeData is not None:
+            pluginObj = self.param.pluginManager.getPlugin(self.serverType)
+            pluginObj.stop(self.pluginRuntimeData)
+            self.pluginRuntimeData = None

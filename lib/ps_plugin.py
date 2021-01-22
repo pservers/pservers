@@ -2,10 +2,9 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
-import glob
-import json
-import libxml2
+import lxml.etree
 from ps_util import PsUtil
+from ps_util import DynObject
 from ps_param import PsConst
 
 
@@ -13,71 +12,91 @@ class PsPluginManager:
 
     def __init__(self, param):
         self.param = param
+        self.pluginDict = dict()
 
-    def loadPlugins(self):
-        for fn in glob.glob(PsConst.pluginCfgFileGlobPattern):
-            pluginName = PsUtil.rreplace(os.path.basename(fn).replace("plugin-", "", 1), ".conf", "", 1)
-            pluginPath = os.path.join(PsConst.serversDir, pluginName)
+    def getPluginNameList(self):
+        ret = []
+        for pluginName in os.listdir(PsConst.pluginsDir):
+            pluginPath = os.path.join(PsConst.pluginsDir, pluginName)
             if not os.path.isdir(pluginPath):
                 continue
-            pluginCfg = dict()
-            with open(os.path.join(PsConst.etcDir, fn), "r") as f:
-                buf = f.read()
-                if buf != "":
-                    pluginCfg = json.loads(buf)
-            self._load(pluginName, pluginPath, pluginCfg)
+            ret.append(pluginName)
+        return ret
 
-    def _load(self, name, path, cfgDict):
-        # get metadata.xml file
-        metadata_file = os.path.join(path, "metadata.xml")
-        if not os.path.exists(metadata_file):
-            raise Exception("plugin %s has no metadata.xml" % (name))
-        if not os.path.isfile(metadata_file):
-            raise Exception("metadata.xml for plugin %s is not a file" % (name))
-        if not os.access(metadata_file, os.R_OK):
-            raise Exception("metadata.xml for plugin %s is invalid" % (name))
+    def getPlugin(self, pluginName):
+        if pluginName not in self.pluginDict:
+            pluginPath = os.path.join(PsConst.pluginsDir, pluginName)
 
-        # check metadata.xml file content
-        # FIXME
-        tree = libxml2.parseFile(metadata_file)
-        # if True:
-        #     dtd = libxml2.parseDTD(None, constants.PATH_PLUGIN_DTD_FILE)
-        #     ctxt = libxml2.newValidCtxt()
-        #     messages = []
-        #     ctxt.setValidityErrorHandler(lambda item, msgs: msgs.append(item), None, messages)
-        #     if tree.validateDtd(ctxt, dtd) != 1:
-        #         msg = ""
-        #         for i in messages:
-        #             msg += i
-        #         raise exceptions.IncorrectPluginMetaFile(metadata_file, msg)
+            # get metadata.xml file
+            metadata_file = os.path.join(pluginPath, "metadata.xml")
+            if not os.path.exists(metadata_file):
+                raise Exception("plugin %s has no metadata.xml" % (pluginName))
+            if not os.path.isfile(metadata_file):
+                raise Exception("metadata.xml for plugin %s is not a file" % (pluginName))
+            if not os.access(metadata_file, os.R_OK):
+                raise Exception("metadata.xml for plugin %s is invalid" % (pluginName))
 
-        # get data from metadata.xml file
-        root = tree.getRootElement()
+            # check metadata.xml file content
+            # FIXME
+            rootElem = lxml.etree.parse(metadata_file).getroot()
+            # if True:
+            #     dtd = libxml2.parseDTD(None, constants.PATH_PLUGIN_DTD_FILE)
+            #     ctxt = libxml2.newValidCtxt()
+            #     messages = []
+            #     ctxt.setValidityErrorHandler(lambda item, msgs: msgs.append(item), None, messages)
+            #     if tree.validateDtd(ctxt, dtd) != 1:
+            #         msg = ""
+            #         for i in messages:
+            #             msg += i
+            #         raise exceptions.IncorrectPluginMetaFile(metadata_file, msg)
 
-        # create PsServer objects
-        obj = PsServer(self.param, path, root.xpathEval(".//server")[0], cfgDict)
-        assert obj.id not in self.param.serverDict
-        self.param.serverDict[obj.id] = obj
+            self.pluginDict[pluginName] = PsPlugin(self.param, pluginName, os.path.join(PsConst.pluginsDir, pluginName), rootElem)
+
+        return self.pluginDict[pluginName]
 
 
-class PsServer:
+class PsPlugin:
 
-    def __init__(self, param, pluginDir, rootElem, cfgDict):
-        self.id = rootElem.prop("id")
-        self.cfgDict = cfgDict
+    def __init__(self, param, pluginName, pluginDir, rootElem):
+        # plugin type
+        self._pluginType = rootElem.xpath(".//type")[0].text
+        if self._pluginType not in ["embedded", "slave-server"]:
+            raise Exception("invalid type %s for plugin %s" % (self._pluginType, pluginName))
 
-        # data directory
-        self.dataDir = os.path.join(PsConst.varDir, self.id)
-        PsUtil.ensureDir(self.dataDir)
+        # starter
+        self._starterExeFile = rootElem.xpath(".//starter")[0].text
+        self._starterExeFile = os.path.join(pluginDir, self._starterExeFile)
 
-        # domain name
-        self.domainName = rootElem.xpathEval(".//domain-name")[0].getContent()
-        if not self.domainName.endswith(".private"):
-            raise Exception("server %s: invalid domain-name %s" % (self.id, self.domainName))
-        # FIXME
-        self.domainName = self.domainName.replace(".private", ".local")
+    @property
+    def pluginType(self):
+        return self._pluginType
 
-        # server type
-        self.serverType = rootElem.xpathEval(".//server-type")[0].getContent()
-        if self.serverType not in ["file", "git"]:
-            raise Exception("server %s: invalid server type %s" % (self.id, self.serverType))
+    def startAndGetMainHttpServerCfgSegment(self, serverId, serverDataDir):
+        tmpDir = os.path.join(PsConst.tmpDir, "serverId")
+        PsUtil.ensureDir(tmpDir)
+
+        if self._pluginType == "embedded":
+            argument = {
+                "server-id": serverId,
+                "data-directory": serverDataDir,
+                "temp-directory": tmpDir,
+            }
+            out = PsUtil.cmdCall(self._starterExeFile, argument)
+            return (out, DynObject())
+        elif self._pluginType == "slave-server":
+            # FIXME: not implemented
+            assert False
+        else:
+            assert False
+
+    def stop(self, pluginRuntimeData):
+        if self._pluginType == "embedded":
+            pass
+        elif self._pluginType == "slave-server":
+            # FIXME: not implemented
+            assert False
+        else:
+            assert False
+
+        tmpDir = os.path.join(PsConst.tmpDir, "serverId")
+        PsUtil.forceDelete(tmpDir)

@@ -2,41 +2,12 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
-import logging
 import subprocess
 from ps_util import PsUtil
 from ps_param import PsConst
 
 
-class PsSlaveServers:
-
-    def __init__(self, param):
-        self.param = param
-        self.httpServer = None
-
-        # register servers by advertise type
-        for serverObj in self.param.serverDict.values():
-            if serverObj.serverType == "file":
-                if self.httpServer is None:
-                    self.httpServer = _HttpServer(self.param)
-                self.httpServer.addFileDir(serverObj.domainName, serverObj.dataDir)
-            elif serverObj.serverType == "git":
-                if self.httpServer is None:
-                    self.httpServer = _HttpServer(self.param)
-                self.httpServer.addGitDir(serverObj.domainName, serverObj.dataDir)
-            else:
-                assert False
-
-        # start servers
-        if self.httpServer is not None:
-            self.httpServer.start()
-
-    def dispose(self):
-        if self.httpServer is not None:
-            self.httpServer.stop()
-
-
-class _HttpServer:
+class PsMainHttpServer:
 
     def __init__(self, param):
         self.param = param
@@ -72,7 +43,6 @@ class _HttpServer:
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.httpPort, self._proc)
-        logging.info("Server (http) started, listening on port %d." % (PsConst.httpPort))
 
     def stop(self):
         if self._proc is not None:

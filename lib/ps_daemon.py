@@ -15,8 +15,9 @@ from ps_util import DropPriviledge
 from ps_util import StdoutRedirector
 from ps_util import AvahiDomainNameRegister
 from ps_param import PsConst
+from ps_plugin import PsPluginManager
 from ps_server import PsServerManager
-from ps_slave_servers import PsSlaveServers
+from ps_main_httpd import PsMainHttpServer
 
 
 class PsDaemon:
@@ -50,6 +51,9 @@ class PsDaemon:
                     # write pid file
                     PsUtil.writePidFile(PsConst.pidFile)
 
+                    # plugin manager
+                    self.pluginManager = PsPluginManager(self.param)
+
                     # load servers
                     self.serverManager = PsServerManager(self.param)
                     self.serverManager.loadServers()
@@ -63,9 +67,13 @@ class PsDaemon:
                         self.param.avahiObj.add_domain_name(serverObj.domainName)
                     self.param.avahiObj.start()
 
-                    # slave servers
-                    # this function shows log messages
-                    self.param.slaveServers = PsSlaveServers(self.param)
+                    # main server
+                    self.param.mainServer = PsMainHttpServer(self.param)
+                    for serverObj in self.param.serverDict.values():
+                        cfgSeg = serverObj.startAndGetMainHttpServerCfgSegment()
+                        self.param.mainServer.addCfgSeg(cfgSeg)
+                    self.param.mainServer.start()
+                    logging.info("Main server started, listening on port %d." % (PsConst.httpPort))
 
                     # start main loop
                     logging.info("Mainloop begins.")
@@ -76,8 +84,8 @@ class PsDaemon:
                 finally:
                     if self.param.avahiObj is not None:
                         self.param.avahiObj.stop()
-                    if self.param.slaveServers is not None:
-                        self.param.slaveServers.dispose()
+                    if self.param.mainServer is not None:
+                        self.param.mainServer.dispose()
                     logging.shutdown()
         finally:
             shutil.rmtree(PsConst.tmpDir)

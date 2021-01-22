@@ -13,7 +13,6 @@ import shutil
 import random
 import socket
 import psutil
-import hashlib
 import logging
 import subprocess
 import encodings.idna
@@ -30,14 +29,6 @@ class PsUtil:
             proc.terminate()
         if wait:
             proc.wait()
-
-    @staticmethod
-    def generateApacheHtdigestFile(filename, userInfoList):
-        # userInfoList: [(username, realm, password), ...]
-        with open(filename, "w") as f:
-            for ui in userInfoList:
-                f.write(ui[0] + ':' + ui[1] + ':' + hashlib.md5(':'.join(ui).encode("iso8859-1")).hexdigest())
-                f.write('\n')
 
     @staticmethod
     def readFile(filename):

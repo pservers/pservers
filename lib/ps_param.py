@@ -12,7 +12,7 @@ class PsConst:
     libDir = "/usr/lib64/pservers"
     libexecDir = "/usr/libexec/pservers"
     pluginsDir = os.path.join(libDir, "plugins.d")
-    serversDir = os.path.join(libDir, "plugins")            # FIXME
+    serversDir = os.path.join(libDir, "servers.d")
 
     varDir = "/var/lib/pservers"
     logDir = "/var/log/pservers"
@@ -28,11 +28,9 @@ class PsConst:
     updaterLogFileCount = 2
 
     httpPort = 80
-    ftpPort = 21
-    gitPort = 9418
+    httpsPort = 443                     # FIXME
 
     mainCfgFile = os.path.join(etcDir, "main.conf")
-    pluginCfgFileGlobPattern = os.path.join(etcDir, "plugin-*.conf")
     pidFile = os.path.join(runDir, "pservers.pid")
 
 
@@ -46,5 +44,5 @@ class PsParam:
         # objects
         self.mainloop = None
         self.pluginManager = None
-        self.slaveServers = None
+        self.mainServer = None
         self.avahiObj = None
