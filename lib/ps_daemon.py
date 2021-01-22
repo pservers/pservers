@@ -15,7 +15,7 @@ from ps_util import DropPriviledge
 from ps_util import StdoutRedirector
 from ps_util import AvahiDomainNameRegister
 from ps_param import PsConst
-from ps_plugin import PsPluginManager
+from ps_server import PsServerManager
 from ps_slave_servers import PsSlaveServers
 
 
@@ -50,12 +50,12 @@ class PsDaemon:
                     # write pid file
                     PsUtil.writePidFile(PsConst.pidFile)
 
-                    # load plugins
-                    self.pluginManager = PsPluginManager(self.param)
-                    self.pluginManager.loadPlugins()
+                    # load servers
+                    self.serverManager = PsServerManager(self.param)
+                    self.serverManager.loadPlugins()
                     if len(self.param.serverDict) == 0:
-                        raise Exception("no plugin loaded")
-                    logging.info("Plugins loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
+                        raise Exception("no server loaded")
+                    logging.info("Servers loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
 
                     # register domain names
                     self.param.avahiObj = AvahiDomainNameRegister()

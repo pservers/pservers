@@ -4,9 +4,10 @@ TODO:
 3. external server support
 
 
-pserver contain two kinds of servers:
-1. built-in server
-2. external server: use pserver as a proxy
+pserver contains 3 kinds of servers:
+1. embeded server: 
+2. slave server:
+3. external server: use pserver as a proxy
 
 
 built-in server type:
