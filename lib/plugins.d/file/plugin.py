@@ -32,7 +32,7 @@ def main():
 
     # dump result
     json.dump({
-        "module-dependencies": [],
+        "module-dependencies": {},
         "config-segment": buf,
     }, sys.stdout)
 
