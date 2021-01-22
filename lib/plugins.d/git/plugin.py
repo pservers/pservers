@@ -2,6 +2,8 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
+import sys
+import json
 import hashlib
 import pservers.plugin
 
@@ -41,7 +43,12 @@ def main():
     buf += '    WSGIChunkedRequest On\n'
     buf += '</VirtualHost>\n'
     buf += '\n'
-    print(buf)
+
+    # dump result
+    json.dump({
+        "module-dependencies": ["mod_wsgi.so"],
+        "config-segment": buf,
+    }, sys.stdout)
 
 
 class _Util:

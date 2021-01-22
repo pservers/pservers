@@ -17,29 +17,15 @@ class PsMainHttpServer:
         self._errorLogFile = os.path.join(PsConst.logDir, "httpd-error.log")
         self._accessLogFile = os.path.join(PsConst.logDir, "httpd-access.log")
 
-        # file
-        self._dirDict = dict()          # <domain-name,file-directory>
-
-        # git
-        self._gitDirDict = dict()       # <domain-name,git-repositories-directory>
-        self._gitFilesDict = dict()     # <domain-name,(wsgi-script-filename,htdigest-filename)
+        self._cfgList = []
 
         self._proc = None
 
-    def addFileDir(self, name, realPath):
-        assert self._proc is None
-        assert _checkNameAndRealPath(self._dirDict, name, realPath)
-        self._dirDict[name] = realPath
-
-    def addGitDir(self, name, realPath):
-        assert self._proc is None
-        assert _checkNameAndRealPath(self._gitDirDict, name, realPath)
-        self._gitDirDict[name] = realPath
-        self._gitFilesDict[name] = None
+    def addConfig(self, cfg):
+        self._cfgList.append(cfg)
 
     def start(self):
         assert self._proc is None
-        self._generateFiles()
         self._generateCfgFn()
         self._proc = subprocess.Popen(["/usr/sbin/apache2", "-f", self._cfgFn, "-DFOREGROUND"])
         PsUtil.waitSocketPortForProc("tcp", self.param.listenIp, PsConst.httpPort, self._proc)
@@ -49,33 +35,6 @@ class PsMainHttpServer:
             self._proc.terminate()
             self._proc.wait()
             self._proc = None
-
-    def _generateFiles(self):
-        # virtual root directory
-        PsUtil.ensureDir(self._rootDir)
-
-        userInfo = ("write", "klaus", "write")      # (username, scope, password)
-        for name, realPath in self._gitDirDict.items():
-            # htdigest file
-            htdigestFn = os.path.join(PsConst.tmpDir, "auth-%s.htdigest" % (name))
-            PsUtil.generateApacheHtdigestFile(htdigestFn, [userInfo])
-
-            # wsgi script
-            wsgiFn = os.path.join(PsConst.tmpDir, "wsgi-%s.py" % (name))
-            with open(wsgiFn, "w") as f:
-                buf = ''
-                buf += '#!/usr/bin/python3\n'
-                buf += '# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-\n'
-                buf += '\n'
-                buf += 'from klaus.contrib.wsgi_autoreloading import make_autoreloading_app\n'
-                buf += '\n'
-                buf += 'application = make_autoreloading_app("%s", "%s",\n' % (realPath, name)
-                buf += '                                     use_smarthttp=True,\n'
-                buf += '                                     unauthenticated_push=True,\n'
-                buf += '                                     htdigest_file=open("%s"))\n' % (htdigestFn)
-                f.write(buf)
-
-            self._gitFilesDict[name] = (htdigestFn, wsgiFn)
 
     def _generateCfgFn(self):
         modulesDir = "/usr/lib64/apache2/modules"
@@ -104,24 +63,9 @@ class PsMainHttpServer:
         buf += '</Directory>\n'
         buf += "\n"
 
-        for name, realPath in self._dirDict.items():
-            buf += '<VirtualHost *>\n'
-            buf += '    ServerName %s\n' % (name)
-            buf += '    DocumentRoot "%s"\n' % (realPath)
-            buf += '    <Directory "%s">\n' % (realPath)
-            buf += '        Options Indexes\n'
-            buf += '        Require all granted\n'
-            buf += '    </Directory>\n'
-            buf += '</VirtualHost>\n'
-            buf += '\n'
-
-        for name, realPath in self._gitDirDict.items():
-            buf += '<VirtualHost *>\n'
-            buf += '    ServerName %s\n' % (name)
-            buf += '    WSGIScriptAlias / %s\n' % (self._gitFilesDict[name][1])
-            buf += '    WSGIChunkedRequest On\n'
-            buf += '</VirtualHost>\n'
-            buf += '\n'
+        for cfg in self._cfgList:
+            buf += cfg["config-segment"]
+            buf += "\n"
 
         with open(self._cfgFn, "w") as f:
             f.write(buf)

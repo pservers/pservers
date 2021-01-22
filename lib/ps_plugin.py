@@ -2,6 +2,7 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
+import json
 import lxml.etree
 from ps_util import PsUtil
 from ps_util import DynObject
@@ -71,7 +72,7 @@ class PsPlugin:
     def pluginType(self):
         return self._pluginType
 
-    def startAndGetMainHttpServerCfgSegment(self, serverId, serverDataDir):
+    def start(self, serverId, serverDataDir):
         tmpDir = os.path.join(PsConst.tmpDir, "serverId")
         PsUtil.ensureDir(tmpDir)
 
@@ -82,7 +83,7 @@ class PsPlugin:
                 "temp-directory": tmpDir,
             }
             out = PsUtil.cmdCall(self._starterExeFile, argument)
-            return (out, DynObject())
+            return (json.loads(out), DynObject())
         elif self._pluginType == "slave-server":
             # FIXME: not implemented
             assert False

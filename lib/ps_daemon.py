@@ -70,8 +70,8 @@ class PsDaemon:
                     # main server
                     self.param.mainServer = PsMainHttpServer(self.param)
                     for serverObj in self.param.serverDict.values():
-                        cfgSeg = serverObj.startAndGetMainHttpServerCfgSegment()
-                        self.param.mainServer.addCfgSeg(cfgSeg)
+                        cfg = serverObj.startAndGetMainHttpServerConfig()
+                        self.param.mainServer.addConfig(cfg)
                     self.param.mainServer.start()
                     logging.info("Main server started, listening on port %d." % (PsConst.httpPort))
 

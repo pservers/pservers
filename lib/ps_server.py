@@ -54,10 +54,10 @@ class PsServer:
         # pluginRuntimeData
         self.pluginRuntimeData = None
 
-    def startAndGetMainHttpServerCfgSegment(self):
+    def startAndGetMainHttpServerConfig(self):
         pluginObj = self.param.pluginManager.getPlugin(self.serverType)
-        cfgSeg, self.pluginRuntimeData = pluginObj.startAndGetMainHttpServerCfgSegment(self.id, self.dataDir)
-        return cfgSeg
+        cfg, self.pluginRuntimeData = pluginObj.start(self.id, self.dataDir)
+        return cfg
 
     def stop(self):
         if self.pluginRuntimeData is not None:
