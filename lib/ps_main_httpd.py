@@ -38,15 +38,24 @@ class PsMainHttpServer:
 
     def _generateCfgFn(self):
         modulesDir = "/usr/lib64/apache2/modules"
-        buf = ""
 
-        buf += "LoadModule log_config_module      %s/mod_log_config.so\n" % (modulesDir)
-        buf += "LoadModule unixd_module           %s/mod_unixd.so\n" % (modulesDir)
-        buf += "LoadModule alias_module           %s/mod_alias.so\n" % (modulesDir)
-        buf += "LoadModule authz_core_module      %s/mod_authz_core.so\n" % (modulesDir)            # it's strange why we need this module and Require directive since we have no auth at all
-        buf += "LoadModule autoindex_module       %s/mod_autoindex.so\n" % (modulesDir)
-        buf += "LoadModule wsgi_module            %s/mod_wsgi.so\n" % (modulesDir)
-        # buf += "LoadModule env_module             %s/mod_env.so\n" % (modulesDir)
+        moduleDict = {
+            "log_config_module": "mod_log_config.so",
+            "unixd_module": "mod_unixd.so",
+            "alias_module": "mod_alias.so",
+            "authz_core_module": "mod_authz_core.so",       # it's strange why we need this module and Require directive since we have no auth at all
+            "autoindex_module": "mod_autoindex.so",
+        }
+        for cfg in self._cfgList:
+            for k, v in cfg["module-dependencies"].items():
+                if k not in moduleDict:
+                    moduleDict[k] = v
+                else:
+                    assert moduleDict[k] == v
+
+        buf = ""
+        for k, v in moduleDict.items():
+            buf += "LoadModule %s %s\n" % (k, os.path.join(modulesDir, v))
         buf += "\n"
         buf += 'PidFile "%s"\n' % (self._pidFile)
         buf += 'ErrorLog "%s"\n' % (self._errorLogFile)
@@ -62,11 +71,9 @@ class PsMainHttpServer:
         buf += '    Require all granted\n'
         buf += '</Directory>\n'
         buf += "\n"
-
         for cfg in self._cfgList:
             buf += cfg["config-segment"]
             buf += "\n"
-
         with open(self._cfgFn, "w") as f:
             f.write(buf)
 
