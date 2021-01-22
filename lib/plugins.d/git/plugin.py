@@ -21,6 +21,7 @@ we don't support git-protocol since it does not support one-server-multiple-doma
 
 def main():
     serverId = pservers.plugin.params["server-id"]
+    domainName = pservers.plugin.params["domain-name"]
     dataDir = pservers.plugin.params["data-directory"]
     tmpDir = pservers.plugin.params["temp-directory"]
 
@@ -49,7 +50,7 @@ def main():
     # generate apache config segment
     buf = ''
     buf += '<VirtualHost *>\n'
-    buf += '    ServerName %s\n' % (serverId)
+    buf += '    ServerName %s\n' % (domainName)
     buf += '    WSGIScriptAlias / %s\n' % (wsgiFn)
     buf += '    WSGIChunkedRequest On\n'
     buf += '</VirtualHost>\n'

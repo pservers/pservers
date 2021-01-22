@@ -56,7 +56,7 @@ class PsServer:
 
     def startAndGetMainHttpServerConfig(self):
         pluginObj = self.param.pluginManager.getPlugin(self.serverType)
-        cfg, self.pluginRuntimeData = pluginObj.start(self.id, self.dataDir)
+        cfg, self.pluginRuntimeData = pluginObj.start(self.id, self.domainName, self.dataDir)
         return cfg
 
     def stop(self):

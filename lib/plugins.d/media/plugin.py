@@ -19,12 +19,12 @@ we don't support rstp-protocol because it does not support one-server-multiple-d
 
 
 def main():
-    serverId = pservers.plugin.params["server-id"]
+    domainName = pservers.plugin.params["domain-name"]
     dataDir = pservers.plugin.params["data-directory"]
 
     buf = ''
     buf += '<VirtualHost *>\n'
-    buf += '    ServerName %s\n' % (serverId)
+    buf += '    ServerName %s\n' % (domainName)
     buf += '    DocumentRoot "%s"\n' % (dataDir)
     buf += '    <Directory "%s">\n' % (dataDir)
     buf += '        Options Indexes\n'

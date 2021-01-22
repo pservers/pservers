@@ -72,13 +72,14 @@ class PsPlugin:
     def pluginType(self):
         return self._pluginType
 
-    def start(self, serverId, serverDataDir):
+    def start(self, serverId, serverDomainName, serverDataDir):
         tmpDir = os.path.join(PsConst.tmpDir, "serverId")
         PsUtil.ensureDir(tmpDir)
 
         if self._pluginType == "embedded":
             argument = {
                 "server-id": serverId,
+                "domain-name": serverDomainName,
                 "data-directory": serverDataDir,
                 "temp-directory": tmpDir,
             }
