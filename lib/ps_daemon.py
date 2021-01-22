@@ -52,7 +52,7 @@ class PsDaemon:
                     PsUtil.writePidFile(PsConst.pidFile)
 
                     # plugin manager
-                    self.pluginManager = PsPluginManager(self.param)
+                    self.param.pluginManager = PsPluginManager(self.param)
 
                     # load servers
                     self.serverManager = PsServerManager(self.param)
@@ -85,7 +85,7 @@ class PsDaemon:
                     if self.param.avahiObj is not None:
                         self.param.avahiObj.stop()
                     if self.param.mainServer is not None:
-                        self.param.mainServer.dispose()
+                        self.param.mainServer.stop()
                     logging.shutdown()
         finally:
             shutil.rmtree(PsConst.tmpDir)

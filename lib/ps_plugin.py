@@ -82,7 +82,7 @@ class PsPlugin:
                 "data-directory": serverDataDir,
                 "temp-directory": tmpDir,
             }
-            out = PsUtil.cmdCall(self._starterExeFile, argument)
+            out = PsUtil.cmdCall(self._starterExeFile, json.dumps(argument))
             return (json.loads(out), DynObject())
         elif self._pluginType == "slave-server":
             # FIXME: not implemented
