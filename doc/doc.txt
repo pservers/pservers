@@ -10,17 +10,6 @@ pserver contains 3 kinds of servers:
 3. external server: use pserver as a proxy
 
 
-built-in server type:
-1. file          http-web w             (user: write)
-                 httpdir r
-2. git           http-web w             (user: write)
-                 http-web r
-                 git-over-http w        (user: write)
-                 git-over-http r
-3. media         http-web w             (user: write)
-                 httpdir r
-                 rstp-over-http r
-
 write account can commit change so that pserver can sync to other pservers to implement active-active.
 after commit, server will record digest for its content, so that conflict can be reported in synchronization.
 git-annex is used as implementation for file data, and keeps some old data, we use this to replace the need for backup.
@@ -29,7 +18,3 @@ git-annex is used as implementation for file data, and keeps some old data, we u
 pserver can advertise "pserver._tcp" by avahi.
 this advertisement is used by active-active only. human user or other client should access by domain name.
 
-
-no git-protocol: does not support one-server-multiple-domain
-no ftp-protocol: very few server/client supports one-server-multiple-domain
-no rstp-protocol: does not support one-server-multiple-domain

@@ -6,6 +6,18 @@ import json
 import pservers.plugin
 
 
+"""
+access-method:
+    http-web r
+    http-web rw             (user: write)
+    httpdir r               (url-postfix: /pub)
+    rstp-over-http r        (url-postfix: /stream)
+
+we don't support ftp-protocol because very few server/client supports one-server-multiple-domain.
+we don't support rstp-protocol because it does not support one-server-multiple-domain.
+"""
+
+
 def main():
     serverId = pservers.plugin.params["server-id"]
     dataDir = pservers.plugin.params["data-directory"]

@@ -8,6 +8,17 @@ import hashlib
 import pservers.plugin
 
 
+"""
+access-method:
+    http-web r
+    http-web rw            (user: write)
+    git-over-http r
+    git-over-http rw       (user: write)
+
+we don't support git-protocol since it does not support one-server-multiple-domain.
+"""
+
+
 def main():
     serverId = pservers.plugin.params["server-id"]
     dataDir = pservers.plugin.params["data-directory"]
