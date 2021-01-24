@@ -31,7 +31,7 @@ class PsConst:
 
     mainCfgFile = os.path.join(etcDir, "main.conf")
     pidFile = os.path.join(runDir, "pservers.pid")
-    apiServerFile = os.path.join(runDir, "pservers.socket")
+    apiServerFile = os.path.join(runDir, "api.socket")
 
 
 class PsParam:

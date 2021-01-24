@@ -33,7 +33,6 @@ pservers.plugin
 
 import sys
 import json
-import socket
 
 __author__ = "fpemud@sina.com (Fpemud)"
 __version__ = "0.0.1"

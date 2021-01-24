@@ -475,7 +475,6 @@ class AvahiDomainNameRegister:
 
     def __init__(self):
         self.retryInterval = 30
-        self.interfaceList = []
         self.domainList = []
 
         self._server = None

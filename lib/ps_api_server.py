@@ -36,8 +36,8 @@ class PsApiServer(UnixDomainSocketApiServer):
 
         if "domain-name" not in data:
             raise Exception("\"domain-name\" field does not exist in notification")
-        if "url-map" not in data:
-            raise Exception("\"url-map\" field does not exist in notification")
+        if "http-port" not in data and "https-port" not in data:
+            raise Exception("\"http-port\" or \"https-port\" must exist in notification")
 
         if self._clientDict[sock] is None:
             self.param.mainServer.addConfig(cfgId, self._toApacheConfig(data))
@@ -49,14 +49,14 @@ class PsApiServer(UnixDomainSocketApiServer):
         self._clientDict[sock] = data
 
     def _toApacheConfig(self, data):
-        # FIXME: not implemented: http2, websocket, multiple-proxypass-directive ordering
+        # FIXME: not implemented: https, http2, websocket, multiple-proxypass-directive ordering
+        assert "http-port" in data and "https-port" not in data
 
         buf = ''
         buf += '<VirtualHost *>\n'
         buf += '    ServerName %s\n' % (data["domain-name"])
-        for src, dst in data["url-map"].items():
-            buf += '    ProxyPass "%s" "%s"\n' % (src, dst)
-            buf += '    ProxyPassReverse "%s" "%s"\n' % (src, dst)
+        buf += '    ProxyPass / "http://127.0.0.1:%d"\n' % (data["http-port"])
+        buf += '    ProxyPassReverse / "http://127.0.0.1:%d"\n' % (data["http-port"])
         buf += '</VirtualHost>\n'
         buf += '\n'
 
