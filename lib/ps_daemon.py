@@ -79,7 +79,7 @@ class PsDaemon:
                     self.param.avahiObj.start()
 
                     # start api server
-                    self.param.apiServer = PsApiServer()
+                    self.param.apiServer = PsApiServer(self.param)
                     logging.info("API server started, socket file %s." % (PsConst.apiServerFile))
 
                     # start main loop
