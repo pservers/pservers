@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
+import logging
 from ps_util import UnixDomainSocketApiServer
 from ps_param import PsConst
 
@@ -29,16 +30,18 @@ class PsApiServer(UnixDomainSocketApiServer):
         assert sock in self._clientDict
         if self._clientDict[sock] is not None:
             self.param.mainServer.removeConfig(sock.fileno())
+            logging.info("%s disappeared." % (self._toDebugStr(self._clientDict[sock])))
         del self._clientDict[sock]
 
     def _clientNotifyFunc(self, sock, data):
-        cfgId = "proxy-%d" % (sock.fileno())
-
+        # check
         if "domain-name" not in data:
             raise Exception("\"domain-name\" field does not exist in notification")
         if "http-port" not in data and "https-port" not in data:
             raise Exception("\"http-port\" or \"https-port\" must exist in notification")
 
+        # do work and save log
+        cfgId = "proxy-%d" % (sock.fileno())
         if self._clientDict[sock] is None:
             self.param.mainServer.addConfig(cfgId, self._toApacheConfig(data))
         else:
@@ -46,7 +49,18 @@ class PsApiServer(UnixDomainSocketApiServer):
             if data["domain-name"] != self._clientDict[sock]["domain-name"]:
                 self.param.avahiObj.remove_domain_name(self._clientDict[sock]["domain-name"])
                 self.param.avahiObj.add_domain_name(data["domain-name"])
+        logging.info("%s registered." % (self._toDebugStr(data)))
+
+        # record data
         self._clientDict[sock] = data
+
+    def _toDebugStr(self, data):
+        tlist = []
+        if "http-port" in data:
+            tlist.append("http:%d" % (data["http-port"]))
+        if "https-port" in data:
+            tlist.append("https:%d" % (data["http-port"]))
+        return "pserver (%s)" % (",".join(tlist))
 
     def _toApacheConfig(self, data):
         # FIXME: not implemented: https, http2, websocket, multiple-proxypass-directive ordering

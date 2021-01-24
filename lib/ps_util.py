@@ -13,6 +13,7 @@ import shutil
 import random
 import socket
 import psutil
+import struct
 import logging
 import traceback
 import subprocess
@@ -23,6 +24,14 @@ from dbus.mainloop.glib import DBusGMainLoop
 
 
 class PsUtil:
+
+    @staticmethod
+    def getUnixDomainSocketPeerInfo(sock):
+        # returns (pid, uid, gid)
+        pattern = "=iii"
+        length = struct.calcsize(pattern)
+        ret = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, length)
+        return struct.unpack(pattern, ret)
 
     @staticmethod
     def procTerminate(proc, wait=False):
