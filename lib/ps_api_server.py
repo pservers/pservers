@@ -42,6 +42,9 @@ class PsApiServer(UnixDomainSocketApiServer):
         if "http-port" not in data and "https-port" not in data:
             raise Exception("\"http-port\" or \"https-port\" must exist in notification")
 
+        # FIXME
+        data["domain-name"] = data["domain-name"].replace(".private", ".local")
+
         # do work and save log
         cfgId = "proxy-%d" % (sock.fileno())
         if self._clientDict[sock] is None:

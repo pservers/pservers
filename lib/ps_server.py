@@ -39,6 +39,7 @@ class PsServer:
         self.domainName = cfgDict["domain-name"]
         if not self.domainName.endswith(".private"):
             raise Exception("server %s: invalid domain-name %s" % (self.id, self.domainName))
+        self.domainName = self.domainName.replace(".private", ".local")                             # FIXME
         del cfgDict["domain-name"]
 
         # server type
