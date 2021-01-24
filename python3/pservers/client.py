@@ -170,13 +170,13 @@ class PersistClientGLib:
 _socketFile = "/run/pservers/api.socket"
 
 
-def _registerParamToData(domain_name, http_port=None, https_port=None):
+def _registerParamToData(domain_name, http_port, https_port):
     assert isinstance(domain_name, str)
     assert http_port is not None or https_port is not None
     if http_port is not None:
-        assert isinstance(domain_name, int) and 0 < http_port < 65536
+        assert isinstance(http_port, int) and 0 < http_port < 65536
     if https_port is not None:
-        assert isinstance(domain_name, int) and 0 < https_port < 65536
+        assert isinstance(https_port, int) and 0 < https_port < 65536
 
     data = {
         "domain-name": domain_name,
