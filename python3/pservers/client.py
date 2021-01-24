@@ -67,9 +67,9 @@ class PersistClientGLib:
     """
     Exampe:
         obj = PersistClientGLib()
-        obj.register(domainName, urlMap)
+        obj.register(domainName, httpPort, httpsPort)
         obj.start()
-        obj.register(domainName, urlMap)
+        obj.register(domainName, httpPort, httpsPort)
         obj.stop()
     """
 
