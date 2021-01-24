@@ -583,6 +583,7 @@ class AvahiDomainNameRegister:
     def _refreshEntryGroup(self):
         hostname = self._server.GetHostNameFqdn()
         hostnameRData = self.__encodeRDATA(hostname)
+        self._entryGroup.Reset()
         for domainName in self.domainList:
             self._entryGroup.AddRecord(-1,                              # interface = avahi.IF_UNSPEC
                                        0,                               # protocol = avahi.PROTO_UNSPEC
