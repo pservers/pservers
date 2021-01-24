@@ -42,6 +42,14 @@ __version__ = "0.0.1"
 
 class SimpleClient:
 
+    """
+    Exampe:
+        obj = SimpleClient()
+        obj.register(domainName, httpPort, httpsPort)
+        ...
+        obj.close()
+    """
+
     def __init__(self):
         self._sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._sock.connect(_socketFile)
@@ -69,7 +77,9 @@ class PersistClientGLib:
         obj = PersistClientGLib()
         obj.register(domainName, httpPort, httpsPort)
         obj.start()
+        ...
         obj.register(domainName, httpPort, httpsPort)
+        ...
         obj.stop()
     """
 
