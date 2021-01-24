@@ -32,6 +32,7 @@ mirrors.pservers
 """
 
 import os
+import json
 import socket
 import logging
 from gi.repository import GLib
@@ -60,7 +61,7 @@ class SimpleClient:
 
     def register(self, domain_name, http_port=None, https_port=None):
         data = _registerParamToData(domain_name, http_port, https_port)
-        self._sock.send(data.encode("utf-8"))
+        self._sock.send(json.dumps(data).encode("utf-8"))
         self._sock.send(b'\n')
 
     def __enter__(self):
@@ -149,7 +150,7 @@ class PersistClientGLib:
             return
 
         try:
-            self._sock.send(self._data.encode("utf-8"))
+            self._sock.send(json.dumps(self._data).encode("utf-8"))
             self._sock.send(b'\n')
         except Exception:
             logging.error("register to pserver failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
