@@ -77,6 +77,8 @@ class PsDaemon:
                     for serverObj in self.param.serverDict.values():
                         self.param.avahiObj.add_domain_name(serverObj.domainName)
                     self.param.avahiObj.start()
+                    for serverObj in self.param.serverDict.values():
+                        logging.info("URL \"http://%s\" is available for access." % (serverObj.domainName))
 
                     # start api server
                     self.param.apiServer = PsApiServer(self.param)
