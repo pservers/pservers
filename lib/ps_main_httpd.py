@@ -24,27 +24,20 @@ class PsMainHttpServer:
     def addConfig(self, cfgId, cfg):
         assert cfgId not in self._cfgDict
         self._cfgDict[cfgId] = cfg
-
-        # modify configuration when server is running
-        if self._proc is not None:
-            self._generateCfgFn()
-            os.kill(self._proc.pid, signal.SIGUSR1)
+        self._refresh()
 
     def updateConfig(self, cfgId, cfg):
         self._cfgDict[cfgId] = cfg
-
-        # modify configuration when server is running
-        if self._proc is not None:
-            self._generateCfgFn()
-            os.kill(self._proc.pid, signal.SIGUSR1)
+        self._refresh()
 
     def removeConfig(self, cfgId):
         del self._cfgDict[cfgId]
+        self._refresh()
 
-        # modify configuration when server is running
-        if self._proc is not None:
-            self._generateCfgFn()
-            os.kill(self._proc.pid, signal.SIGUSR1)
+    def batchRemoveConfig(self, cfgIdList):
+        for cfgId in cfgIdList:
+            del self._cfgDict[cfgId]
+        self._refresh()
 
     def start(self):
         assert self._proc is None
@@ -100,6 +93,11 @@ class PsMainHttpServer:
             buf += "\n"
         with open(self._cfgFn, "w") as f:
             f.write(buf)
+
+    def _refresh(self):
+        if self._proc is not None:
+            self._generateCfgFn()
+            os.kill(self._proc.pid, signal.SIGUSR1)
 
 
 def _checkNameAndRealPath(dictObj, name, realPath):

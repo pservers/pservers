@@ -1,7 +1,7 @@
 TODO:
 1. changes to ".private" domain name
 2. active-active
-3. external server support
+3. pserver register client (multiple language)
 
 
 pserver contains 3 kinds of servers:

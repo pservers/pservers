@@ -18,6 +18,7 @@ from ps_param import PsConst
 from ps_plugin import PsPluginManager
 from ps_server import PsServerManager
 from ps_main_httpd import PsMainHttpServer
+from ps_api_server import PsApiServer
 
 
 class PsDaemon:
@@ -61,12 +62,6 @@ class PsDaemon:
                         raise Exception("no server loaded")
                     logging.info("Servers loaded: %s" % (",".join(sorted(self.param.serverDict.keys()))))
 
-                    # register domain names
-                    self.param.avahiObj = AvahiDomainNameRegister()
-                    for serverObj in self.param.serverDict.values():
-                        self.param.avahiObj.add_domain_name(serverObj.domainName)
-                    self.param.avahiObj.start()
-
                     # main server
                     self.param.mainServer = PsMainHttpServer(self.param)
                     for serverId, serverObj in self.param.serverDict.items():
@@ -77,6 +72,15 @@ class PsDaemon:
                     self.param.mainServer.start()
                     logging.info("Main server started, listening on port %d." % (PsConst.httpPort))
 
+                    # register domain names
+                    self.param.avahiObj = AvahiDomainNameRegister()
+                    for serverObj in self.param.serverDict.values():
+                        self.param.avahiObj.add_domain_name(serverObj.domainName)
+                    self.param.avahiObj.start()
+
+                    # start api server
+                    self.param.apiServer = PsApiServer()
+
                     # start main loop
                     logging.info("Mainloop begins.")
                     self.param.mainloop.add_signal_handler(signal.SIGINT, self._sigHandlerINT)
@@ -84,6 +88,8 @@ class PsDaemon:
                     self.param.mainloop.run_forever()
                     logging.info("Mainloop exits.")
                 finally:
+                    if self.param.apiServer is not None:
+                        self.param.apiServer.dispose()
                     if self.param.avahiObj is not None:
                         self.param.avahiObj.stop()
                     if self.param.mainServer is not None:

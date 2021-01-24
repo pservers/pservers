@@ -46,3 +46,4 @@ class PsParam:
         self.pluginManager = None
         self.mainServer = None
         self.avahiObj = None
+        self.apiServer = None
