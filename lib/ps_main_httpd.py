@@ -2,6 +2,7 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
+import signal
 import subprocess
 from ps_util import PsUtil
 from ps_param import PsConst
@@ -17,12 +18,33 @@ class PsMainHttpServer:
         self._errorLogFile = os.path.join(PsConst.logDir, "httpd-error.log")
         self._accessLogFile = os.path.join(PsConst.logDir, "httpd-access.log")
 
-        self._cfgList = []
-
+        self._cfgDict = dict()      # <cfg-id,cfg>
         self._proc = None
 
-    def addConfig(self, cfg):
-        self._cfgList.append(cfg)
+    def addConfig(self, cfgId, cfg):
+        assert cfgId not in self._cfgDict
+        self._cfgDict[cfgId] = cfg
+
+        # modify configuration when server is running
+        if self._proc is not None:
+            self._generateCfgFn()
+            os.kill(self._proc.pid, signal.SIGUSR1)
+
+    def updateConfig(self, cfgId, cfg):
+        self._cfgDict[cfgId] = cfg
+
+        # modify configuration when server is running
+        if self._proc is not None:
+            self._generateCfgFn()
+            os.kill(self._proc.pid, signal.SIGUSR1)
+
+    def removeConfig(self, cfgId):
+        del self._cfgDict[cfgId]
+
+        # modify configuration when server is running
+        if self._proc is not None:
+            self._generateCfgFn()
+            os.kill(self._proc.pid, signal.SIGUSR1)
 
     def start(self):
         assert self._proc is None
@@ -48,7 +70,7 @@ class PsMainHttpServer:
             "authz_core_module": "mod_authz_core.so",       # it's strange why we need this module and Require directive since we have no auth at all
             "autoindex_module": "mod_autoindex.so",
         }
-        for cfg in self._cfgList:
+        for cfg in self._cfgDict.values():
             for k, v in cfg["module-dependencies"].items():
                 if k not in moduleDict:
                     moduleDict[k] = v
@@ -73,7 +95,7 @@ class PsMainHttpServer:
         buf += '    Require all granted\n'
         buf += '</Directory>\n'
         buf += "\n"
-        for cfg in self._cfgList:
+        for cfg in self._cfgDict.values():
             buf += cfg["config-segment"]
             buf += "\n"
         with open(self._cfgFn, "w") as f:

@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import dbus
+import json
 import stat
 import prctl
 import ctypes
@@ -13,6 +14,7 @@ import random
 import socket
 import psutil
 import logging
+import traceback
 import subprocess
 import encodings.idna
 from gi.repository import GLib
@@ -309,6 +311,98 @@ class StdoutRedirector:
 class DynObject:
     # an object that can contain abitrary dynamically created properties and methods
     pass
+
+
+class UnixDomainSocketApiServer:
+
+    def __init__(self, serverFile, clientAppearFunc, clientDisappearFunc, notifyFunc):
+        # Parameter clientAppearFunc is called after client appears.
+        # Parameter clientDisappearFunc is called after we find client disappears and before we destroy the client object.
+        # Parameter clientDisappearFunc can be None.
+
+        assert serverFile is not None
+        assert clientAppearFunc is not None and notifyFunc is not None
+
+        self.clientAppearFunc = clientAppearFunc
+        self.clientDisappearFunc = clientDisappearFunc
+        self.notifyFunc = notifyFunc
+
+        self.serverSock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.serverSock.bind(serverFile)
+        self.serverSock.listen(5)
+        self.serverSourceId = GLib.io_add_watch(self.serverSock, GLib.IO_IN, self.onServerAccept)
+
+        self.clientInfoDict = dict()
+
+    def dispose(self):
+        for sock, obj in self.clientInfoDict.items():
+            GLib.source_remove(obj.inWatch)
+            sock.close()
+        GLib.source_remove(self.serverSourceId)
+        self.serverSock.close()
+
+    def onServerAccept(self, source, cb_condition):
+        # event callback, no exception is allowed
+
+        new_sock, addr = source.accept()
+
+        try:
+            data = self.clientAppearFunc(new_sock)
+        except Exception:
+            # absorb exception raised by upper layer function
+            traceback.print_exc()
+            new_sock.close()
+            return True
+
+        obj = DynObject()
+        obj.inWatch = GLib.io_add_watch(new_sock, GLib.IO_IN | GLib.IO_PRI | GLib.IO_ERR | GLib.IO_HUP | GLib.IO_NVAL, self.onRecv)
+        obj.recvBuf = b''
+        obj.clientData = data
+        self.clientInfoDict[new_sock] = obj
+        return True
+
+    def onRecv(self, source, cb_condition):
+        bCloseSocket = False
+        try:
+            obj = self.clientInfoDict[source]
+
+            # receive and parse
+            obj.recvBuf += source.recv(4096)
+            while True:
+                i = obj.recvBuf.find(b'\n')
+                if i < 0:
+                    break
+                jsonObj = json.loads(obj.recvBuf[:i].decode("utf-8"))
+                obj.recvBuf = obj.recvBuf[i + 1:]
+                try:
+                    self.notifyFunc(obj.clientData, jsonObj)
+                except Exception:
+                    # absorb exception raised by upper layer function, FIXME
+                    print("upper layer exception")
+                    traceback.print_exc()
+                    raise
+
+            # remote closed
+            if (cb_condition & GLib.IO_HUP):
+                bCloseSocket = True
+                if len(obj.recvBuf) > 0:
+                    raise Exception("remote close")
+        except Exception:
+            print("excp IO_IN, %d" % (cb_condition & GLib.IO_IN))               # FIXME
+            print("excp IO_PRI, %d" % (cb_condition & GLib.IO_PRI))
+            print("excp IO_ERR, %d" % (cb_condition & GLib.IO_ERR))
+            print("excp IO_HUP, %d" % (cb_condition & GLib.IO_HUP))
+            print("excp IO_NVAL, %d" % (cb_condition & GLib.IO_NVAL))
+            traceback.print_exc()
+        finally:
+            if bCloseSocket:
+                if self.clientDisappearFunc is not None:
+                    self.clientDisappearFunc(self.clientInfoDict[source].clientData)
+                del self.clientInfoDict[source]
+                source.close()
+                return False
+            else:
+                return True
 
 
 class DropPriviledge:

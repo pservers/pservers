@@ -69,9 +69,11 @@ class PsDaemon:
 
                     # main server
                     self.param.mainServer = PsMainHttpServer(self.param)
-                    for serverObj in self.param.serverDict.values():
+                    for serverId, serverObj in self.param.serverDict.items():
+                        if serverId.startswith("proxy-"):
+                            raise Exception("invalid server %s" % (serverId))       # "proxy-" prefix is reserved for external servers
                         cfg = serverObj.startAndGetMainHttpServerConfig()
-                        self.param.mainServer.addConfig(cfg)
+                        self.param.mainServer.addConfig(serverId, cfg)
                     self.param.mainServer.start()
                     logging.info("Main server started, listening on port %d." % (PsConst.httpPort))
 

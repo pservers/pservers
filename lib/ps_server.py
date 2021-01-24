@@ -16,8 +16,8 @@ class PsServerManager:
     def loadServers(self):
         for dname in [PsConst.etcDir, PsConst.serversDir]:
             for fn in glob.glob(os.path.join(dname, "*.server")):
-                serverName = PsUtil.rreplace(os.path.basename(fn), ".server", "", 1)
-                self.param.serverDict[serverName] = PsServer(self.param, serverName, fn)
+                serverId = PsUtil.rreplace(os.path.basename(fn), ".server", "", 1)
+                self.param.serverDict[serverId] = PsServer(self.param, serverId, fn)
 
 
 class PsServer:
