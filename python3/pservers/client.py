@@ -112,7 +112,7 @@ class PersistClientGLib:
             self._register()
 
     def onRecv(self, source, cb_condition):
-        logging.error("pserver connection aborted, retry in %d seconds" % (self.retryInterval), exc_info=True)
+        logging.error("pserver connection aborted, retry in %d seconds" % (self.retryInterval))
         self._closeSocket()
         self._retryCreateSocket()
         return False
