@@ -80,6 +80,7 @@ class PsDaemon:
 
                     # start api server
                     self.param.apiServer = PsApiServer()
+                    logging.info("API server started, socket file %s." % (PsConst.apiServerFile))
 
                     # start main loop
                     logging.info("Mainloop begins.")

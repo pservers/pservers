@@ -466,8 +466,10 @@ class AvahiDomainNameRegister:
     """
     Exampe:
         obj = AvahiDomainNameRegister()
-        obj.add_domain_name(domainName)
+        obj.add_domain_name(domainName1)
         obj.start()
+        obj.add_domain_name(domainName2)
+        obj.remove_domain_name(domainName1)
         obj.stop()
     """
 
@@ -482,10 +484,6 @@ class AvahiDomainNameRegister:
         self._retryRegisterTimer = None
         self._ownerChangeHandler = None
 
-    def add_domain_name(self, domain_name):
-        assert isinstance(domain_name, str)
-        self.domainList.append(domain_name)
-
     def start(self):
         DBusGMainLoop(set_as_default=True)
 
@@ -499,6 +497,18 @@ class AvahiDomainNameRegister:
             self._ownerChangeHandler = None
         self._unregister()
         self._releaseServer()
+
+    def add_domain_name(self, domain_name):
+        assert isinstance(domain_name, str)
+
+        self.domainList.append(domain_name)
+        if self._entryGroup is not None:
+            self._refreshEntryGroup()
+
+    def remove_domain_name(self, domain_name):
+        self.domainList.remove(domain_name)
+        if self._entryGroup is not None:
+            self._refreshEntryGroup()
 
     def onNameOwnerChanged(self, name, old, new):
         if name == "org.freedesktop.Avahi":
@@ -546,18 +556,7 @@ class AvahiDomainNameRegister:
         try:
             self._entryGroup = dbus.Interface(dbus.SystemBus().get_object("org.freedesktop.Avahi", self._server.EntryGroupNew()),
                                               "org.freedesktop.Avahi.EntryGroup")
-            hostname = self._server.GetHostNameFqdn()
-            hostnameRData = self.__encodeRDATA(hostname)
-            for domainName in self.domainList:
-                self._entryGroup.AddRecord(-1,                                                            # interface = avahi.IF_UNSPEC
-                                           0,                                                             # protocol = avahi.PROTO_UNSPEC
-                                           dbus.UInt32(0),                                                # flags
-                                           self.__encodeCNAME(domainName),                                # name
-                                           0x01,                                                          # CLASS_IN
-                                           0X05,                                                          # TYPE_CNAME
-                                           60,                                                            # TTL
-                                           hostnameRData)                                                 # rdata
-            self._entryGroup.Commit()
+            self._refreshEntryGroup()
             self._entryGroup.connect_to_signal("StateChanged", self.onEntryGroupStateChanged)
         except Exception:
             logging.error("Avahi register domain name failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
@@ -571,15 +570,29 @@ class AvahiDomainNameRegister:
         if self._entryGroup is not None:
             try:
                 if self._entryGroup.GetState() != 4:        # avahi.ENTRY_GROUP_FAILURE
-                    self._entryGroup.Reset()
-                    self._entryGroup.Free()
+                    self._entryGroup.Reset()                # why there's no commit after reset?
+                    self._entryGroup.Free()                 # why not free directly?
                     # .Free() has mem leaks?
                     self._entryGroup._obj._bus = None
                     self._entryGroup._obj = None
             except dbus.exceptions.DBusException:
-                pass
+                pass                                        # add log message?
             finally:
                 self._entryGroup = None
+
+    def _refreshEntryGroup(self):
+        hostname = self._server.GetHostNameFqdn()
+        hostnameRData = self.__encodeRDATA(hostname)
+        for domainName in self.domainList:
+            self._entryGroup.AddRecord(-1,                              # interface = avahi.IF_UNSPEC
+                                       0,                               # protocol = avahi.PROTO_UNSPEC
+                                       dbus.UInt32(0),                  # flags
+                                       self.__encodeCNAME(domainName),  # name
+                                       0x01,                            # CLASS_IN
+                                       0X05,                            # TYPE_CNAME
+                                       60,                              # TTL
+                                       hostnameRData)                   # rdata
+        self._entryGroup.Commit()
 
     def onEntryGroupStateChanged(self, state, error):
         if state in [0, 1, 2]:  # avahi.ENTRY_GROUP_UNCOMMITED, avahi.ENTRY_GROUP_REGISTERING, avahi.ENTRY_GROUP_ESTABLISHED
