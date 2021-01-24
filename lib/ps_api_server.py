@@ -5,6 +5,10 @@ from ps_util import UnixDomainSocketApiServer
 from ps_param import PsConst
 
 
+# FIXME
+# 1. no error report to client
+# 2. perhaps should use json-rpc
+# 3. low-priority, client should use client library
 class PsApiServer(UnixDomainSocketApiServer):
 
     def __init__(self, param):
@@ -29,19 +33,23 @@ class PsApiServer(UnixDomainSocketApiServer):
 
     def _clientNotifyFunc(self, sock, data):
         cfgId = "proxy-%d" % (sock.fileno())
-        if self._clientDict[sock] is None:
-            self.param.mainServer.addConfig(cfgId, self._toApacheConfig(data))
-        else:
-            self.param.mainServer.updateConfig(cfgId, self._toApacheConfig(data))
-        self._clientDict[sock] = data
-
-    def _toApacheConfig(data):
-        # FIXME: not implemented: http2, websocket, multiple-proxypass-directive ordering
 
         if "domain-name" not in data:
             raise Exception("\"domain-name\" field does not exist in notification")
         if "url-map" not in data:
             raise Exception("\"url-map\" field does not exist in notification")
+
+        if self._clientDict[sock] is None:
+            self.param.mainServer.addConfig(cfgId, self._toApacheConfig(data))
+        else:
+            self.param.mainServer.updateConfig(cfgId, self._toApacheConfig(data))
+            if data["domain-name"] != self._clientDict[sock]["domain-name"]:
+                self.param.avahiObj.remove_domain_name(self._clientDict[sock]["domain-name"])
+                self.param.avahiObj.add_domain_name(data["domain-name"])
+        self._clientDict[sock] = data
+
+    def _toApacheConfig(self, data):
+        # FIXME: not implemented: http2, websocket, multiple-proxypass-directive ordering
 
         buf = ''
         buf += '<VirtualHost *>\n'
