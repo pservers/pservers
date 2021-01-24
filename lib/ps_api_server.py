@@ -37,6 +37,8 @@ class PsApiServer(UnixDomainSocketApiServer):
         # check
         if "domain-name" not in data:
             raise Exception("\"domain-name\" field does not exist in notification")
+        if not data["domain-name"].endswith(".private"):
+            raise Exception("\"domain-name\" field is invalid")
         if "http-port" not in data and "https-port" not in data:
             raise Exception("\"http-port\" or \"https-port\" must exist in notification")
 
