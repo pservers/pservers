@@ -264,7 +264,7 @@ class PsUtil:
                 raise Exception("process terminated")
             time.sleep(0.1)
             for c in psutil.net_connections(kind=portType):
-                # if c.pid == proc.pid and c.status == "LISTEN":        # FIXME: for apache, c.pid is wrong, netstat command is correct
+                # if c.pid == proc.pid and c.status == "LISTEN":        # FIXME: for apache, c.pid is wrong, result of netstat is right
                 if c.status == "LISTEN":
                     if c.family == socket.AF_INET and c.laddr[0] == ip and c.laddr[1] == port:
                         return
