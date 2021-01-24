@@ -61,7 +61,7 @@ class PsApiServer(UnixDomainSocketApiServer):
             tlist.append("http:%d" % (data["http-port"]))
         if "https-port" in data:
             tlist.append("https:%d" % (data["http-port"]))
-        return "pserver (%s,%s)" % (data["domain-name"], ",".join(tlist))
+        return "pserver \"%s,%s\"" % (data["domain-name"], ",".join(tlist))
 
     def _toApacheConfig(self, data):
         # FIXME: not implemented: https, http2, websocket, multiple-proxypass-directive ordering
