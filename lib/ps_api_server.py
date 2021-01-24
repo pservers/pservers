@@ -53,6 +53,7 @@ class PsApiServer(UnixDomainSocketApiServer):
 
         # record data
         self._clientDict[sock] = data
+        logging.info("URL \"http://%s\" is available for access." % (self._clientDict[sock]["domain-name"]))
 
     def _toDebugStr(self, data):
         tlist = []
