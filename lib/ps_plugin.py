@@ -73,8 +73,14 @@ class PsPlugin:
         return self._pluginType
 
     def start(self, serverId, serverDomainName, serverDataDir):
-        tmpDir = os.path.join(PsConst.tmpDir, "serverId")
+        tmpDir = os.path.join(PsConst.tmpDir, serverId)
         PsUtil.ensureDir(tmpDir)
+
+        tmpWebRootDir = os.path.join(PsConst.tmpWebRootDir, serverId)
+        PsUtil.ensureDir(tmpWebRootDir)
+
+        pluginRuntimeData = DynObject()
+        pluginRuntimeData.serverId = serverId
 
         if self._pluginType == "embedded":
             argument = {
@@ -82,9 +88,10 @@ class PsPlugin:
                 "domain-name": serverDomainName,
                 "data-directory": serverDataDir,
                 "temp-directory": tmpDir,
+                "webroot-directory": tmpWebRootDir,
             }
             out = PsUtil.cmdCall(self._starterExeFile, json.dumps(argument))
-            return (json.loads(out), DynObject())
+            return (json.loads(out), pluginRuntimeData)
         elif self._pluginType == "slave-server":
             # FIXME: not implemented
             assert False
@@ -92,6 +99,8 @@ class PsPlugin:
             assert False
 
     def stop(self, pluginRuntimeData):
+        serverId = pluginRuntimeData.serverId
+
         if self._pluginType == "embedded":
             pass
         elif self._pluginType == "slave-server":
@@ -100,5 +109,8 @@ class PsPlugin:
         else:
             assert False
 
-        tmpDir = os.path.join(PsConst.tmpDir, "serverId")
+        tmpWebRootDir = os.path.join(PsConst.tmpWebRootDir, serverId)
+        PsUtil.forceDelete(tmpWebRootDir)
+
+        tmpDir = os.path.join(PsConst.tmpDir, serverId)
         PsUtil.forceDelete(tmpDir)

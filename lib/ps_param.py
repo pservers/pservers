@@ -16,7 +16,8 @@ class PsConst:
     varDir = "/var/lib/pservers"
     logDir = "/var/log/pservers"
     runDir = "/run/pservers"
-    tmpDir = "/tmp/pservers"             # FIXME
+    tmpDir = "/tmp/pservers"                            # FIXME
+    tmpWebRootDir = os.path.join(tmpDir, "web-root")
 
     user = "pservers"
     group = "pservers"

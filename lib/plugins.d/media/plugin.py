@@ -8,8 +8,8 @@ import pservers.plugin
 
 """
 access-method:
-    http-web r
-    http-web rw             (user: write)
+    http-ui r
+    http-ui rw              (user: rw)
     httpdir r               (url-postfix: /pub)
     rstp-over-http r        (url-postfix: /stream)
 
@@ -23,14 +23,12 @@ def main():
     dataDir = pservers.plugin.params["data-directory"]
 
     buf = ''
-    buf += '<VirtualHost *>\n'
-    buf += '    ServerName %s\n' % (domainName)
-    buf += '    DocumentRoot "%s"\n' % (dataDir)
-    buf += '    <Directory "%s">\n' % (dataDir)
-    buf += '        Options Indexes\n'
-    buf += '        Require all granted\n'
-    buf += '    </Directory>\n'
-    buf += '</VirtualHost>\n'
+    buf += 'ServerName %s\n' % (domainName)
+    buf += 'DocumentRoot "%s"\n' % (dataDir)
+    buf += '<Directory "%s">\n' % (dataDir)
+    buf += '    Options Indexes\n'
+    buf += '    Require all granted\n'
+    buf += '</Directory>\n'
 
     # dump result
     json.dump({

@@ -10,10 +10,10 @@ import pservers.plugin
 
 """
 access-method:
-    http-web r
-    http-web rw            (user: write)
+    http-ui r
+    http-ui rw             (user: rw)
     git-over-http r
-    git-over-http rw       (user: write)
+    git-over-http rw       (user: rw)
 
 we don't support git-protocol since it does not support one-server-multiple-domain.
 """
@@ -24,6 +24,7 @@ def main():
     domainName = pservers.plugin.params["domain-name"]
     dataDir = pservers.plugin.params["data-directory"]
     tmpDir = pservers.plugin.params["temp-directory"]
+    webRootDir = pservers.plugin.params["webroot-directory"]
 
     # (username, scope, password)
     userInfo = ("write", "klaus", "write")
@@ -49,11 +50,10 @@ def main():
 
     # generate apache config segment
     buf = ''
-    buf += '<VirtualHost *>\n'
-    buf += '    ServerName %s\n' % (domainName)
-    buf += '    WSGIScriptAlias / %s\n' % (wsgiFn)
-    buf += '    WSGIChunkedRequest On\n'
-    buf += '</VirtualHost>\n'
+    buf += 'ServerName %s\n' % (domainName)
+    buf += 'DocumentRoot "%s"\n' % (webRootDir)
+    buf += 'WSGIScriptAlias / %s\n' % (wsgiFn)
+    buf += 'WSGIChunkedRequest On\n'
     buf += '\n'
 
     # dump result
