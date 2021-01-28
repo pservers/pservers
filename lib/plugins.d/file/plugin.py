@@ -56,7 +56,11 @@ def main():
 
     # dump result
     json.dump({
-        "module-dependencies": {},
+        "module-dependencies": {
+            "dav_module": "mod_dav.so",
+            "dav_fs_module": "mod_dav_fs.so",
+            "dav_lock_module": "mod_dav_lock.so",
+        },
         "config-segment": buf,
     }, sys.stdout)
 
