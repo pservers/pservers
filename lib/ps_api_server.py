@@ -73,12 +73,9 @@ class PsApiServer(UnixDomainSocketApiServer):
         assert "http-port" in data and "https-port" not in data
 
         buf = ''
-        buf += '<VirtualHost *>\n'
-        buf += '    ServerName %s\n' % (data["domain-name"])
-        buf += '    ProxyPass / "http://127.0.0.1:%d"\n' % (data["http-port"])
-        buf += '    ProxyPassReverse / "http://127.0.0.1:%d"\n' % (data["http-port"])
-        buf += '</VirtualHost>\n'
-        buf += '\n'
+        buf += 'ServerName %s\n' % (data["domain-name"])
+        buf += 'ProxyPass / "http://127.0.0.1:%d"\n' % (data["http-port"])
+        buf += 'ProxyPassReverse / "http://127.0.0.1:%d"\n' % (data["http-port"])
 
         return {
             "module-dependencies": {

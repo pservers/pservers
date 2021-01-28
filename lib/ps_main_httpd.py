@@ -90,7 +90,10 @@ class PsMainHttpServer:
         buf += "\n"
         for cfg in self._cfgDict.values():
             buf += '<VirtualHost *>\n'
-            buf += "    " + cfg["config-segment"].replace("\n", "\n    ")           # FIXME: add indent for every line
+            for line in cfg["config-segment"].split("\n"):
+                if line == "":
+                    continue
+                buf += '    %s\n' % (line)
             buf += '</VirtualHost>\n'
             buf += "\n"
         with open(self._cfgFn, "w") as f:
