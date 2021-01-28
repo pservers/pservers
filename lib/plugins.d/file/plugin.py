@@ -20,16 +20,23 @@ we don't support ftp-protocol because very few server/client supports one-server
 
 
 def main():
+    selfDir = os.path.dirname(os.path.realpath(__file__))
+
     domainName = pservers.plugin.params["domain-name"]
     dataDir = pservers.plugin.params["data-directory"]
     tmpDir = pservers.plugin.params["temp-directory"]
     webRootDir = pservers.plugin.params["webroot-directory"]
 
+    # webdav directory in root directory
     webdavDir = os.path.join(webRootDir, "webdav")
     os.symlink(dataDir, webdavDir)
 
+    # pub directory in root directory
     pubDir = os.path.join(webRootDir, "pub")
     os.symlink(dataDir, pubDir)
+
+    # static files in root directory
+    os.symlink(os.path.join(selfDir, "index.html"), os.path.join(webRootDir, "index.html"))
 
     buf = ''
     buf += 'ServerName %s\n' % (domainName)
