@@ -164,7 +164,8 @@ class PersistClientGLib:
     def __timeoutCreateSocket(self):
         self._retryCreateSocketTimer = None
         self._createSocket()                    # no exception in self._createSocket()
-        self._register()                        # no exception in self._register()
+        if self._sock is not None:
+            self._register()                    # no exception in self._register()
         return False
 
 
