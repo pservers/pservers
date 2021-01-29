@@ -8,8 +8,7 @@ from ps_param import PsConst
 
 # FIXME
 # 1. no error report to client
-# 2. perhaps should use json-rpc
-# 3. low-priority, client should use client library
+# 2. should use bidirectional json-rpc
 class PsApiServer(UnixDomainSocketApiServer):
 
     def __init__(self, param):

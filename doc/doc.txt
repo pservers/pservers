@@ -1,13 +1,11 @@
 TODO:
 1. changes to ".private" domain name
 2. active-active
-3. pserver register client (multiple language)
 
 
-pserver contains 3 kinds of servers:
+pserver contains 2 kinds of servers:
 1. embeded server: 
-2. slave server:
-3. external server: use pserver as a proxy
+2. external server: use pserver as a proxy
 
 
 write account can commit change so that pserver can sync to other pservers to implement active-active.

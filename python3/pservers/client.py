@@ -112,7 +112,7 @@ class PersistClientGLib:
             self._register()
 
     def onRecv(self, source, cb_condition):
-        logging.error("pserver connection aborted, retry in %d seconds" % (self.retryInterval))
+        logging.error("connection aborted, retry in %d seconds" % (self.retryInterval))
         self._closeSocket()
         self._retryCreateSocket()
         return False
@@ -131,7 +131,7 @@ class PersistClientGLib:
             self._sock.connect(_socketFile)
             self._sockWatch = GLib.io_add_watch(self._sock, GLib.IO_IN | GLib.IO_PRI | GLib.IO_ERR | GLib.IO_HUP | GLib.IO_NVAL, self.onRecv)
         except Exception:
-            logging.error("connect to pserver failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
+            logging.error("connect failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
             self._closeSocket()
             self._retryCreateSocket()
 
@@ -153,7 +153,7 @@ class PersistClientGLib:
             self._sock.send(json.dumps(self._data).encode("utf-8"))
             self._sock.send(b'\n')
         except Exception:
-            logging.error("register to pserver failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
+            logging.error("register failed, retry in %d seconds" % (self.retryInterval), exc_info=True)
             self._closeSocket()
             self._retryCreateSocket()
 

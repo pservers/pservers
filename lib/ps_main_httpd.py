@@ -2,6 +2,7 @@
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 import os
+import re
 import signal
 import subprocess
 from ps_util import PsUtil
@@ -64,11 +65,13 @@ class PsMainHttpServer:
             "autoindex_module": "mod_autoindex.so",
         }
         for cfg in self._cfgDict.values():
-            for k, v in cfg["module-dependencies"].items():
+            for md in cfg["module-dependencies"]:
+                m = re.fullmatch("mod_(.*)\\.so", md)
+                k = m.group(1) + "_module"
                 if k not in moduleDict:
-                    moduleDict[k] = v
+                    moduleDict[k] = md
                 else:
-                    assert moduleDict[k] == v
+                    assert moduleDict[k] == md
 
         buf = ""
         for k, v in moduleDict.items():
