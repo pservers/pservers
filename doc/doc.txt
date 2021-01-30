@@ -1,11 +1,12 @@
 TODO:
 1. changes to ".private" domain name
 2. active-active
-
+3. set MYHOSTNAME as domain-name
+4. static proxy server
 
 pserver contains 2 kinds of servers:
 1. embeded server: 
-2. external server: use pserver as a proxy
+2. proxied server: use pserver as a proxy
 
 
 write account can commit change so that pserver can sync to other pservers to implement active-active.
