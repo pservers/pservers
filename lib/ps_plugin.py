@@ -22,7 +22,7 @@ class PsPluginManager:
         if pluginName not in self.pluginDict:
             mod = __import__("plugins.%s" % (pluginName))
             mod = getattr(mod, pluginName)
-            self.pluginDict[pluginName] = PsPlugin(self.param, pluginName, os.path.join(PsConst.pluginDir, pluginName), mod)
+            self.pluginDict[pluginName] = PsPlugin(self.param, pluginName, os.path.join(PsConst.pluginsDir, pluginName), mod)
         return self.pluginDict[pluginName]
 
 
