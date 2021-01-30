@@ -19,8 +19,6 @@ install:
 	install -d -m 0755 "$(DESTDIR)/lib/systemd/system"
 	install -m 0644 data/pservers.service "$(DESTDIR)/lib/systemd/system"
 
-	find "$(DESTDIR)/$(prefix)/lib/pservers/plugins.d/$(plugin)" -name "*.py" | xargs chmod 755		# FIXME
-
 uninstall:
 	rm -f "$(DESTDIR)/lib/systemd/system/pservers.service"
 	rm -rf "$(DESTDIR)/$(prefix)/lib/pservers"
