@@ -74,3 +74,13 @@ class _FtpServer:
         with open(self._cfgFn, "w") as f:
             f.write(buf)
 
+
+
+
+
+    @staticmethod
+    def generateApacheHtdigestFile(filename, scope):
+        # user "write", without password
+        with open(filename, "w") as f:
+            # username:scope:password-digest
+            f.write('%s:%s:%s\n' % ("write", scope, hashlib.md5(':'.join(ui).encode("iso8859-1")).hexdigest()))
