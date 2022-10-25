@@ -77,9 +77,9 @@ class PsApiServer(UnixDomainSocketApiServer):
         buf += 'ProxyPassReverse / "http://127.0.0.1:%d"\n' % (data["http-port"])
 
         return {
-            "module-dependencies": {
-                "proxy_module": "mod_proxy.so",
-                "proxy_http_module": "mod_proxy_http.so",
-            },
+            "module-dependencies": [
+                "mod_proxy.so",
+                "mod_proxy_http.so",
+            ],
             "config-segment": buf,
         }

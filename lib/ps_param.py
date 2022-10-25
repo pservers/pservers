@@ -27,7 +27,7 @@ class PsConst:
     updaterLogFileCount = 2
 
     httpPort = 80
-    httpsPort = 443                     # FIXME
+    httpsPort = 443
 
     mainCfgFile = os.path.join(etcDir, "main.conf")
     pidFile = os.path.join(runDir, "pservers.pid")
